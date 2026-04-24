@@ -1,7 +1,9 @@
 import { requireAuth, apiSuccess, apiError, handleApiError, ApiException } from '@/lib/api'
-import { createRepo, getReposByAccountId } from '@/lib/db/repoRepo'
+import { createRepo, getReposByAccountId, updateRepo } from '@/lib/db/repoRepo'
 import { getOctokitForAccount } from '@/lib/github/client'
 import { registerWebhook } from '@/lib/github/webhooks'
+import { fetchMetricsForRepo } from '@/lib/github/metrics'
+import { insertMetric } from '@/lib/db/metricRepo'
 import { ConnectRepoSchema } from '@/types'
 import logger from '@/lib/logger'
 
@@ -31,7 +33,17 @@ export async function POST(request: Request): Promise<Response> {
     const octokit = await getOctokitForAccount(activeAccountId)
     const { data: ghRepo } = await octokit.repos.get({ owner, repo })
 
-    const webhookId = await registerWebhook(activeAccountId, fullName)
+    let webhookId: number | null = null
+    try {
+      webhookId = await registerWebhook(activeAccountId, fullName)
+    } catch (webhookError: unknown) {
+      const status = (webhookError as { status?: number }).status
+      if (status === 422) {
+        logger.warn({ fullName }, 'Webhook registration skipped — WEBHOOK_BASE_URL is not publicly reachable')
+      } else {
+        throw webhookError
+      }
+    }
 
     const newRepo = await createRepo({
       githubAccountId: activeAccountId,
@@ -41,6 +53,20 @@ export async function POST(request: Request): Promise<Response> {
     })
 
     logger.info({ repoId: newRepo.id, fullName }, 'Repository connected')
+
+    setImmediate(async () => {
+      try {
+        const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const metrics = await fetchMetricsForRepo(octokit, newRepo.id, newRepo.fullName, from, new Date())
+        for (const metric of metrics) {
+          await insertMetric(metric)
+        }
+        await updateRepo(newRepo.id, { lastSyncedAt: new Date() })
+        logger.info({ repoId: newRepo.id, count: metrics.length }, 'Initial backfill complete')
+      } catch (err) {
+        logger.error({ err, repoId: newRepo.id }, 'Initial backfill failed')
+      }
+    })
 
     return apiSuccess(
       {
