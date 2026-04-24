@@ -22,7 +22,7 @@
     "@octokit/rest": "^21.0.2",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
-    "next": "14.2.20",
+    "next": "^14.2.35",
     "next-auth": "5.0.0-beta.25",
     "pino": "^9.5.0",
     "pino-pretty": "^11.3.0",

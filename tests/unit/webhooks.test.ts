@@ -1,4 +1,8 @@
-jest.mock('@/lib/github/client')
+jest.mock('@/lib/github/client', () => ({
+  getOctokitForAccount: jest.fn(),
+  getWebhookSecretForAccount: jest.fn(),
+  getAccessTokenForAccount: jest.fn(),
+}))
 jest.mock('@/lib/db/accountRepo')
 jest.mock('@/lib/crypto')
 jest.mock('crypto', () => ({
@@ -10,15 +14,14 @@ jest.mock('@/lib/logger', () => ({
 }))
 
 import { registerWebhook, deleteWebhook } from '@/lib/github/webhooks'
-import { getOctokitForAccount } from '@/lib/github/client'
-import { getAccountWithSecret, updateAccount } from '@/lib/db/accountRepo'
-import { encrypt, decrypt } from '@/lib/crypto'
+import { getOctokitForAccount, getWebhookSecretForAccount } from '@/lib/github/client'
+import { updateAccount } from '@/lib/db/accountRepo'
+import { encrypt } from '@/lib/crypto'
 
 const mockGetOctokit = getOctokitForAccount as jest.Mock
-const mockGetAccount = getAccountWithSecret as jest.Mock
+const mockGetWebhookSecret = getWebhookSecretForAccount as jest.Mock
 const mockUpdateAccount = updateAccount as jest.Mock
 const mockEncrypt = encrypt as jest.Mock
-const mockDecrypt = decrypt as jest.Mock
 
 process.env.WEBHOOK_BASE_URL = 'https://example.ngrok.io'
 
@@ -34,14 +37,13 @@ describe('registerWebhook', () => {
   beforeEach(() => jest.clearAllMocks())
 
   it('uses existing webhook secret when account already has one', async () => {
-    mockGetAccount.mockResolvedValue({ id: 'acc-1', webhookSecret: 'enc-secret' })
-    mockDecrypt.mockReturnValue('raw-secret')
+    mockGetWebhookSecret.mockResolvedValue('raw-secret')
     const oc = makeOctokit()
     mockGetOctokit.mockResolvedValue(oc)
 
     const id = await registerWebhook('acc-1', 'owner/repo')
 
-    expect(mockDecrypt).toHaveBeenCalledWith('enc-secret')
+    expect(mockGetWebhookSecret).toHaveBeenCalledWith('acc-1')
     expect(mockUpdateAccount).not.toHaveBeenCalled()
     expect(id).toBe(42)
     expect(oc.repos.createWebhook).toHaveBeenCalledWith(
@@ -50,7 +52,7 @@ describe('registerWebhook', () => {
   })
 
   it('generates and stores a new secret when account has none', async () => {
-    mockGetAccount.mockResolvedValue({ id: 'acc-1', webhookSecret: null })
+    mockGetWebhookSecret.mockResolvedValue(null)
     mockEncrypt.mockReturnValue('newly-encrypted')
     mockUpdateAccount.mockResolvedValue({})
     const oc = makeOctokit()
@@ -62,14 +64,13 @@ describe('registerWebhook', () => {
   })
 
   it('throws when account is not found', async () => {
-    mockGetAccount.mockResolvedValue(null)
+    mockGetWebhookSecret.mockRejectedValue(new Error('GitHub account not found'))
 
-    await expect(registerWebhook('missing', 'owner/repo')).rejects.toThrow('Account not found')
+    await expect(registerWebhook('missing', 'owner/repo')).rejects.toThrow('GitHub account not found')
   })
 
   it('returns the webhook id from GitHub', async () => {
-    mockGetAccount.mockResolvedValue({ id: 'acc-1', webhookSecret: 'enc' })
-    mockDecrypt.mockReturnValue('s')
+    mockGetWebhookSecret.mockResolvedValue('s')
     mockGetOctokit.mockResolvedValue(makeOctokit(99))
 
     const id = await registerWebhook('acc-1', 'owner/repo')

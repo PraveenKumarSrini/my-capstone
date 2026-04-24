@@ -74,7 +74,7 @@ describe('GitHubAccountsManager', () => {
       json: () => Promise.resolve({ success: false, error: 'Cannot disconnect last account' }),
     })
 
-    const { rerender } = render(<GitHubAccountsManager />)
+    render(<GitHubAccountsManager />)
     // Simulate the manager's handleDisconnect being called
     // Since AccountRow is mocked, trigger manually via rendered component logic
     await waitFor(() => expect(screen.queryByText('Cannot disconnect last account')).not.toBeInTheDocument())

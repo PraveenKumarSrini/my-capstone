@@ -18,12 +18,17 @@ const customConfig = {
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/app/layout.tsx',
-    '!src/app/page.tsx',
+    '!src/app/**/layout.tsx',   // Next.js layout wrappers — E2E scope
+    '!src/app/**/page.tsx',     // Next.js page entry points — E2E scope
+    '!src/middleware.ts',       // Next.js middleware — E2E scope
+    '!src/worker.ts',           // Background process — integration/E2E scope
   ],
   coverageThreshold: {
     global: { lines: 80 },
   },
+  // Integration tests share a single postgres-test DB — sequential execution
+  // prevents clearDatabase() in one suite from racing with inserts in another.
+  maxWorkers: 1,
 }
 
 module.exports = createJestConfig(customConfig)

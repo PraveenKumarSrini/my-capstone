@@ -1,5 +1,20 @@
 jest.mock('@/lib/github/processWebhookEvent')
 
+// Prevents Jest from loading @octokit/rest (ESM) while still providing
+// a real getWebhookSecretForAccount backed by actual crypto + DB.
+// Plain async function (not jest.fn) so jest.resetAllMocks() cannot discard it.
+jest.mock('@/lib/github/client', () => ({
+  getWebhookSecretForAccount: async (accountId: string) => {
+    const { decrypt } = require('@/lib/crypto') as typeof import('@/lib/crypto')
+    const { default: db } = require('@/lib/db') as typeof import('@/lib/db')
+    const account = await db.gitHubAccount.findUnique({
+      where: { id: accountId },
+      select: { webhookSecret: true },
+    })
+    return account?.webhookSecret ? decrypt(account.webhookSecret) : null
+  },
+}))
+
 import { createHmac } from 'crypto'
 import { POST } from '@/app/api/webhooks/github/route'
 import { clearDatabase, createTestUser, createTestGitHubAccount, createTestRepo } from 'tests/helpers/db'

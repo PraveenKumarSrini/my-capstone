@@ -1,5 +1,7 @@
+jest.mock('@/lib/github/client', () => ({
+  getAccessTokenForAccount: jest.fn(),
+}))
 jest.mock('@/lib/db/accountRepo')
-jest.mock('@/lib/crypto')
 jest.mock('@/lib/logger', () => ({
   __esModule: true,
   default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -22,10 +24,10 @@ jest.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
 
 import { searchGitHubReposViaMCP } from '@/lib/github/mcp'
 import { getAccountWithSecret } from '@/lib/db/accountRepo'
-import { decrypt } from '@/lib/crypto'
+import { getAccessTokenForAccount } from '@/lib/github/client'
 
 const mockGetAccount = getAccountWithSecret as jest.Mock
-const mockDecrypt = decrypt as jest.Mock
+const mockGetAccessToken = getAccessTokenForAccount as jest.Mock
 
 const fakeAccount = { id: 'acc-1', githubLogin: 'alice', accessToken: 'enc-token' }
 
@@ -33,7 +35,7 @@ describe('searchGitHubReposViaMCP', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetAccount.mockResolvedValue(fakeAccount)
-    mockDecrypt.mockReturnValue('raw-token')
+    mockGetAccessToken.mockResolvedValue('raw-token')
     mockClose.mockResolvedValue(undefined)
   })
 
@@ -106,11 +108,11 @@ describe('searchGitHubReposViaMCP', () => {
     expect(mockClose).toHaveBeenCalled()
   })
 
-  it('decrypts the access token and uses it for the transport', async () => {
+  it('fetches the access token via getAccessTokenForAccount and uses it for the transport', async () => {
     mockCallTool.mockResolvedValue({
       content: [{ type: 'text', text: JSON.stringify({ items: [] }) }],
     })
     await searchGitHubReposViaMCP('acc-1')
-    expect(mockDecrypt).toHaveBeenCalledWith('enc-token')
+    expect(mockGetAccessToken).toHaveBeenCalledWith('acc-1')
   })
 })

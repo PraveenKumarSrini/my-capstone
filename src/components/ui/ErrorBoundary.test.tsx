@@ -18,8 +18,11 @@ function BrokenChild({ shouldThrow }: { shouldThrow: boolean }) {
   return <span>ok</span>
 }
 
+// eslint-disable-next-line no-console
 const originalConsoleError = console.error
+// eslint-disable-next-line no-console
 beforeAll(() => { console.error = jest.fn() })
+// eslint-disable-next-line no-console
 afterAll(() => { console.error = originalConsoleError })
 
 describe('ErrorBoundary', () => {

@@ -52,7 +52,7 @@ export async function POST(request: Request): Promise<Response> {
       githubAccountId: activeAccountId,
       fullName: ghRepo.full_name,
       githubRepoId: ghRepo.id,
-      webhookId,
+      webhookId: webhookId ?? undefined,
     })
 
     logger.info({ repoId: newRepo.id, fullName }, 'Repository connected')
