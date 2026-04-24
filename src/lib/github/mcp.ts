@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { getAccountWithSecret } from '@/lib/db/accountRepo'
-import { decrypt } from '@/lib/crypto'
+import { getAccessTokenForAccount } from '@/lib/github/client'
 import logger from '@/lib/logger'
 
 export type MCPRepoResult = {
@@ -32,7 +32,7 @@ export async function searchGitHubReposViaMCP(
   const account = await getAccountWithSecret(accountId)
   if (!account) throw new Error('GitHub account not found')
 
-  const token = decrypt(account.accessToken)
+  const token = await getAccessTokenForAccount(accountId)
   const searchQuery = query
     ? `user:${account.githubLogin} ${query} in:name`
     : `user:${account.githubLogin}`

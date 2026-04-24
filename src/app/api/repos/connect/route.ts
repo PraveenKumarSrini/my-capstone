@@ -29,6 +29,9 @@ export async function POST(request: Request): Promise<Response> {
     if (existing.some((r) => r.fullName === fullName)) {
       throw new ApiException('Repository is already tracked', 409, 'ALREADY_TRACKED')
     }
+    if (existing.length >= 30) {
+      return apiError('Maximum of 30 repositories per account reached', 400, 'MAX_REPOS')
+    }
 
     const octokit = await getOctokitForAccount(activeAccountId)
     const { data: ghRepo } = await octokit.repos.get({ owner, repo })

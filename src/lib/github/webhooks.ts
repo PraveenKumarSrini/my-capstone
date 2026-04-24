@@ -1,17 +1,12 @@
 import { randomBytes } from 'crypto'
-import { getOctokitForAccount } from '@/lib/github/client'
-import { getAccountWithSecret, updateAccount } from '@/lib/db/accountRepo'
-import { encrypt, decrypt } from '@/lib/crypto'
+import { getOctokitForAccount, getWebhookSecretForAccount } from '@/lib/github/client'
+import { updateAccount } from '@/lib/db/accountRepo'
+import { encrypt } from '@/lib/crypto'
 import logger from '@/lib/logger'
 
 export async function registerWebhook(accountId: string, repoFullName: string): Promise<number> {
-  const account = await getAccountWithSecret(accountId)
-  if (!account) throw new Error('Account not found')
-
-  let rawSecret: string
-  if (account.webhookSecret) {
-    rawSecret = decrypt(account.webhookSecret)
-  } else {
+  let rawSecret = await getWebhookSecretForAccount(accountId)
+  if (!rawSecret) {
     rawSecret = randomBytes(32).toString('hex')
     await updateAccount(accountId, { webhookSecret: encrypt(rawSecret) })
   }
