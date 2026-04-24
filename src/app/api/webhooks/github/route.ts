@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto'
-import { decrypt } from '@/lib/crypto'
+import { getWebhookSecretForAccount } from '@/lib/github/client'
 import { enqueue, isDuplicate } from '@/lib/db/webhookEventRepo'
 import { processWebhookEvent } from '@/lib/github/processWebhookEvent'
 import logger from '@/lib/logger'
@@ -38,16 +38,13 @@ export async function POST(request: Request): Promise<Response> {
 
   const repo = await prisma.repository.findFirst({
     where: { fullName: repoData.full_name, githubRepoId: repoData.id },
-    include: { githubAccount: true },
   })
 
   if (!repo) {
     return Response.json({ success: false, error: 'Repository not found' }, { status: 404 })
   }
 
-  const rawSecret = repo.githubAccount.webhookSecret
-    ? decrypt(repo.githubAccount.webhookSecret)
-    : null
+  const rawSecret = await getWebhookSecretForAccount(repo.githubAccountId)
 
   if (!rawSecret || !verifySignature(rawSecret, rawBody, sigHeader)) {
     return Response.json({ success: false, error: 'Invalid signature' }, { status: 401 })
