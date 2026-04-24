@@ -2,6 +2,7 @@
 
 > This file is the single source of truth for Claude Code working in this codebase.
 > Read it fully before making any changes. Update it when architectural decisions change.
+> For full requirements and acceptance criteria, see [`docs/SPEC.md`](docs/SPEC.md).
 
 ---
 
@@ -10,7 +11,7 @@
 ```bash
 # Development
 npm run dev              # Start dev server (port 3000)
-npm run dev:worker       # Start background job worker
+npm run dev:worker       # Start background job worker (persistent Node.js process)
 
 # Build & Quality
 npm run build            # Production build
@@ -26,11 +27,15 @@ npm run test:coverage    # Coverage report (target: >80%)
 # Database
 npx prisma generate      # Regenerate Prisma client (run after schema changes)
 npx prisma migrate dev   # Apply pending migrations (dev only)
+npx prisma db seed       # Seed demo data (1 user, 2 accounts, 3 repos, sample metrics)
 npx prisma studio        # Open DB GUI at localhost:5555
-docker compose up -d postgres-test  # Spin up test DB
+docker compose up -d postgres-test  # Spin up test DB (port 5433)
 
 # GitHub MCP
 npx @anthropic-ai/claude-code --mcp github   # Claude Code with GitHub MCP server
+
+# Local webhook testing (development only)
+ngrok http 3000          # Expose localhost — set WEBHOOK_BASE_URL to ngrok URL
 ```
 
 ---
@@ -40,11 +45,22 @@ npx @anthropic-ai/claude-code --mcp github   # Claude Code with GitHub MCP serve
 **DevPulse** is an internal developer analytics dashboard. It aggregates GitHub activity (commits, PRs, reviews) across multiple GitHub accounts and repositories per user, presenting metrics through a real-time dashboard.
 
 ### Key Domain Concepts
-- **User**: A DevPulse account (email + password or OAuth)
-- **GitHubAccount**: A GitHub identity connected to a User (one user → many GitHub accounts)
-- **Repository**: A GitHub repo tracked under a GitHubAccount (one GitHubAccount → many repos)
+- **User**: A DevPulse account (email + password or GitHub OAuth)
+- **GitHubAccount**: A GitHub identity connected to a User (one user → many GitHub accounts, max 10)
+- **Repository**: A GitHub repo tracked under a GitHubAccount (one GitHubAccount → up to 30 repos)
 - **Metric**: A time-series data point captured for a Repository (commits, PRs, reviews, etc.)
+- **WebhookEvent**: A durable inbox record for incoming GitHub webhook payloads (persisted before processing)
 - **ActiveAccount**: The currently selected GitHubAccount context for a User session
+
+### Architectural Decisions (locked)
+| Decision | Choice |
+|----------|--------|
+| Deployment | Traditional Node.js (VPS/Docker) — persistent worker process |
+| GitHub OAuth login | Auto-connects that GitHub account (Option A) |
+| Real-time updates | GitHub Webhooks → DB queue → SSE push to browser |
+| Downtime resilience | Three-layer: webhooks + WebhookEvent DB queue + 30-min reconciliation |
+| SSE vs WebSockets | SSE (server→client push; simpler; auto-reconnects) |
+| Token storage | AES-256-GCM encrypted at rest via `src/lib/crypto.ts` |
 
 ---
 
@@ -55,13 +71,17 @@ npx @anthropic-ai/claude-code --mcp github   # Claude Code with GitHub MCP serve
 | Frontend | React 18, Next.js 14 (App Router), TypeScript 5 |
 | Styling | Tailwind CSS v3 only |
 | Charts | Recharts |
-| Backend | Next.js API Routes (Edge-compatible where noted) |
+| Backend | Next.js API Routes |
 | ORM | Prisma 5 + PostgreSQL 16 |
 | Auth | NextAuth v5 (JWT sessions) |
+| GitHub Client | @octokit/rest (via `getOctokitForAccount`) |
 | GitHub Data | GitHub MCP server via Claude Code |
+| Real-time | Server-Sent Events (SSE) |
+| Validation | Zod |
+| HTTP Cache | SWR |
 | Testing | Jest (unit/integration), Playwright (e2e) |
 | CI/CD | GitHub Actions |
-| Logger | `src/lib/logger.ts` (structured JSON) |
+| Logger | `src/lib/logger.ts` (Pino, structured JSON) |
 
 ---
 
@@ -71,55 +91,81 @@ npx @anthropic-ai/claude-code --mcp github   # Claude Code with GitHub MCP serve
 devpulse/
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/                  # Login, register, onboarding pages
+│   │   ├── (auth)/                  # Login, register pages
 │   │   ├── (dashboard)/             # Protected dashboard routes
 │   │   │   ├── page.tsx             # Main dashboard view
-│   │   │   ├── settings/            # User + GitHub account settings
-│   │   │   └── repos/               # Repo detail pages
+│   │   │   ├── settings/            # GitHub account management
+│   │   │   └── repos/               # Repo list + detail pages
 │   │   └── api/
 │   │       ├── auth/                # NextAuth handlers
 │   │       ├── github-accounts/     # GitHub account CRUD
-│   │       │   ├── route.ts         # GET (list), POST (connect new)
+│   │       │   ├── route.ts         # GET (list), POST (connect)
 │   │       │   └── [accountId]/
-│   │       │       ├── route.ts     # GET, PATCH, DELETE
+│   │       │       ├── route.ts     # GET, DELETE
 │   │       │       └── switch/route.ts  # POST — switch active account
 │   │       ├── repos/
 │   │       │   ├── route.ts         # GET (list repos for active account)
+│   │       │   ├── connect/route.ts # POST — add repo + register webhook
 │   │       │   └── [repoId]/
-│   │       │       └── metrics/route.ts  # GET metrics with ?from=&to=
-│   │       └── dashboard/
-│   │           └── route.ts         # GET aggregated team metrics
+│   │       │       ├── route.ts     # PATCH isTracked
+│   │       │       └── metrics/route.ts  # GET metrics ?from=&to=&type=
+│   │       ├── dashboard/
+│   │       │   └── route.ts         # GET aggregated metrics
+│   │       ├── webhooks/
+│   │       │   └── github/route.ts  # POST — receive GitHub webhook events
+│   │       └── sse/
+│   │           └── metrics/route.ts # GET — SSE stream for real-time updates
 │   ├── components/
-│   │   ├── charts/                  # Recharts wrappers (CommitChart, PRChart, etc.)
-│   │   ├── layout/                  # Shell, Sidebar, Header, AccountSwitcher
-│   │   ├── repos/                   # RepoSelector, RepoCard, ActivityFeed
-│   │   └── ui/                      # Primitives: Button, Badge, Modal, Spinner
+│   │   ├── charts/                  # CommitChart (LineChart), PRChart (BarChart)
+│   │   ├── dashboard/               # MetricsSummaryBar, MetricCard, SyncStatusBar
+│   │   ├── layout/                  # DashboardShell, Sidebar, Header, AccountSwitcher
+│   │   ├── repos/                   # RepoSelector, RepoCard, ActivityFeed, ConnectRepoForm
+│   │   └── ui/                      # Button, Badge, Modal, Spinner, ErrorBoundary
 │   ├── lib/
-│   │   ├── auth.ts                  # NextAuth config, session helpers
+│   │   ├── auth.ts                  # NextAuth config — GitHub OAuth auto-connects account
+│   │   ├── crypto.ts                # AES-256-GCM encrypt/decrypt (tokens + webhook secrets)
+│   │   ├── sse.ts                   # EventEmitter singleton — subscribe/broadcast
 │   │   ├── github/
-│   │   │   ├── client.ts            # Octokit factory — creates client per GitHubAccount
-│   │   │   ├── metrics.ts           # Fetch + transform raw GitHub data → Metric shape
-│   │   │   └── sync.ts              # Background sync job logic
+│   │   │   ├── client.ts            # getOctokitForAccount(accountId) — ONLY place to decrypt token
+│   │   │   ├── webhooks.ts          # registerWebhook / deleteWebhook via Octokit
+│   │   │   ├── metrics.ts           # fetchMetricsForRepo — GitHub API → Metric[]
+│   │   │   ├── processWebhookEvent.ts  # parse payload → write Metrics → broadcast SSE
+│   │   │   └── sync.ts              # reconcileStaleRepos — backfill via GitHub API
 │   │   ├── db.ts                    # Prisma client singleton
-│   │   ├── logger.ts                # Pino structured logger
-│   │   └── utils.ts                 # General utilities (date ranges, formatters)
-│   ├── hooks/                       # Client-side React hooks
-│   │   ├── useActiveAccount.ts      # Read/set active GitHub account from session
-│   │   ├── useMetrics.ts            # SWR hook for metrics data
-│   │   └── useRepos.ts              # SWR hook for repos list
+│   │   ├── db/
+│   │   │   ├── userRepo.ts
+│   │   │   ├── accountRepo.ts
+│   │   │   ├── repoRepo.ts
+│   │   │   ├── metricRepo.ts
+│   │   │   └── webhookEventRepo.ts  # enqueue / dequeue / mark status
+│   │   ├── logger.ts                # Pino — redacts accessToken + webhookSecret
+│   │   └── utils.ts                 # buildDateRange, formatMetricValue, chunkArray
+│   ├── hooks/
+│   │   ├── useActiveAccount.ts      # Session-based active account
+│   │   ├── useMetrics.ts            # SWR hook for metrics
+│   │   ├── useRepos.ts              # SWR hook for repos
+│   │   └── useSSE.ts                # EventSource → on metrics_updated → SWR mutate()
 │   └── types/
-│       └── index.ts                 # Shared TypeScript types and Zod schemas
+│       └── index.ts                 # All TS types + Zod schemas
 ├── prisma/
-│   ├── schema.prisma                # Source of truth for DB schema
-│   └── migrations/                  # Never edit migrations manually
+│   ├── schema.prisma                # Source of truth for DB schema (6 models)
+│   ├── seed.ts                      # Demo data: 1 user, 2 accounts, 3 repos, metrics
+│   └── migrations/                  # Never edit manually
 ├── tests/
 │   ├── unit/                        # Pure function tests
 │   ├── integration/                 # API route tests with test DB
 │   └── e2e/                         # Playwright browser tests
+├── docs/
+│   └── SPEC.md                      # Formal spec: requirements, design, scope boundaries
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                   # Test → Lint → Typecheck → Build
-│       └── deploy.yml               # On main merge: build + deploy
+│       ├── ci.yml                   # Lint → Typecheck → Test → Build
+│       └── deploy.yml               # On main merge: CI + E2E + deploy
+├── .claude/
+│   └── commands/                    # Custom Claude Code slash commands
+│       ├── sync-check.md            # /sync-check — verify webhook + reconciliation health
+│       ├── add-metric.md            # /add-metric — scaffold a new MetricType end-to-end
+│       └── security-scan.md         # /security-scan — audit tokens, HMAC, ownership checks
 ├── CLAUDE.md                        # ← You are here
 └── .claudeignore
 ```
@@ -142,26 +188,33 @@ model User {
 }
 
 model GitHubAccount {
-  id           String       @id @default(cuid())
-  userId       String
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  githubLogin  String       // GitHub username for this account
-  accessToken  String       // Encrypted — never log or expose
-  displayName  String?      // Optional friendly label (e.g. "Work", "Personal")
-  repos        Repository[]
-  createdAt    DateTime     @default(now())
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubLogin    String        // GitHub username — never the raw token
+  accessToken    String        // AES-256-GCM encrypted — NEVER log or expose
+  avatarUrl      String?       // Cached from GitHub profile
+  displayName    String?       // e.g. "Work", "Personal"
+  webhookSecret  String?       // AES-256-GCM encrypted per-account HMAC secret
+  repos          Repository[]
+  createdAt      DateTime      @default(now())
 
   @@unique([userId, githubLogin])
 }
 
 model Repository {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   githubAccountId String
-  githubAccount   GitHubAccount @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
-  fullName        String        // "owner/repo"
-  isTracked       Boolean       @default(true)
+  githubAccount   GitHubAccount  @relation(fields: [githubAccountId], references: [id], onDelete: Cascade)
+  fullName        String         // "owner/repo"
+  githubRepoId    Int            // GitHub numeric repo ID (for webhook payload validation)
+  isTracked       Boolean        @default(true)
+  webhookId       Int?           // GitHub webhook ID (used to delete on untrack)
   metrics         Metric[]
+  webhookEvents   WebhookEvent[]
   lastSyncedAt    DateTime?
+
+  @@unique([githubAccountId, fullName])
 }
 
 model Metric {
@@ -176,6 +229,23 @@ model Metric {
   @@index([repoId, type, recordedAt])
 }
 
+// Durable inbox — webhook payload persisted BEFORE processing begins
+model WebhookEvent {
+  id          String             @id @default(cuid())
+  repoId      String
+  repo        Repository         @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  deliveryId  String             @unique  // X-GitHub-Delivery — prevents duplicate processing
+  eventType   String             // "push" | "pull_request" | "pull_request_review"
+  payload     Json               // raw GitHub webhook payload
+  status      WebhookEventStatus @default(PENDING)
+  processedAt DateTime?
+  retryCount  Int                @default(0)
+  error       String?
+  receivedAt  DateTime           @default(now())
+
+  @@index([status, receivedAt])
+}
+
 enum MetricType {
   COMMIT_COUNT
   PR_OPENED
@@ -184,27 +254,59 @@ enum MetricType {
   REVIEW_COUNT
   COMMENT_COUNT
 }
+
+enum WebhookEventStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+```
+
+---
+
+## Three-Layer Sync Architecture
+
+Real-time data delivery is handled by three complementary layers:
+
+```
+Layer 1 — Webhooks (real-time, primary path)
+  GitHub fires event → POST /api/webhooks/github
+  → validate HMAC-SHA256 → INSERT WebhookEvent (PENDING) → 200 OK
+  → async processWebhookEvent → write Metric → UPDATE lastSyncedAt
+  → sseBroadcast → dashboard re-renders
+
+Layer 2 — WebhookEvent Queue (durability)
+  Payload saved to DB before processing.
+  Worker startup: reprocess all PENDING + FAILED (retryCount < 3) events.
+  Survives crashes, restarts, and deploy downtime.
+
+Layer 3 — Reconciliation Job (safety net, every 30 min)
+  Worker finds repos where lastSyncedAt < now - 35min.
+  Fetches missing activity via GitHub API and upserts Metrics.
+  Fills gaps from extended outages or missed webhook deliveries.
 ```
 
 ---
 
 ## Multi-GitHub-Account Design
 
-This is a core feature. One User can connect multiple GitHub accounts (personal, work, OSS org, etc.).
+One User can connect multiple GitHub accounts (personal, work, OSS org, etc.) — up to 10.
 
 ### Rules
-1. Every API call that touches GitHub data **must** receive a `githubAccountId`. Never assume the "default" account.
+1. Every API call that touches GitHub data **must** receive a `githubAccountId`. Never assume a default.
 2. The active account is stored in the user's session as `session.user.activeAccountId`.
-3. Account switching calls `POST /api/github-accounts/[accountId]/switch` — it updates `User.activeAccountId` and refreshes the session.
-4. `src/lib/github/client.ts` exports `getOctokitForAccount(accountId)` — always use this factory, never instantiate Octokit directly.
-5. Access tokens are encrypted at rest using `src/lib/crypto.ts`. Never store or log raw tokens.
+3. Account switching calls `POST /api/github-accounts/[accountId]/switch` — updates `User.activeAccountId` and re-issues JWT.
+4. `src/lib/github/client.ts` exports `getOctokitForAccount(accountId)` — always use this, never instantiate Octokit directly.
+5. Access tokens and webhook secrets are encrypted at rest via `src/lib/crypto.ts`. Never store or log raw values.
 6. When listing repos, always scope to the currently active `GitHubAccount`, not the whole User.
+7. GitHub OAuth login automatically connects that GitHub account (no separate step needed).
 
 ### AccountSwitcher Component
 - Lives in `src/components/layout/AccountSwitcher.tsx`
-- Displays all connected GitHub accounts with avatars
-- On select: calls the switch endpoint, then `router.refresh()`
-- Shows a loading state during switch — do not allow repo interaction mid-switch
+- Displays all connected GitHub accounts with avatars and display names
+- On select: calls the switch endpoint → JWT re-issued → `router.refresh()`
+- Shows a loading state during switch — block all repo interactions mid-switch
 
 ---
 
@@ -213,29 +315,44 @@ This is a core feature. One User can connect multiple GitHub accounts (personal,
 All API responses follow this envelope:
 
 ```typescript
-// Success
-{ success: true, data: T }
-
-// Error
-{ success: false, error: string, code?: string }
+{ success: true, data: T }          // success
+{ success: false, error: string, code?: string }  // error
 ```
 
-Never return raw data without the envelope. Never throw unhandled errors from API routes — always catch and return `{ success: false, error: "..." }`.
+Never return raw data without the envelope. Never throw unhandled errors — always catch and return `{ success: false, error: "..." }`.
 
 ### Key Endpoints
 
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/github-accounts` | List all GitHub accounts for the current user |
-| POST | `/api/github-accounts` | Connect a new GitHub account (OAuth flow) |
+| POST | `/api/github-accounts` | Connect a new GitHub account (OAuth code exchange) |
 | GET | `/api/github-accounts/:accountId` | Get single account details |
-| DELETE | `/api/github-accounts/:accountId` | Disconnect a GitHub account |
+| DELETE | `/api/github-accounts/:accountId` | Disconnect — removes webhooks first |
 | POST | `/api/github-accounts/:accountId/switch` | Set as active account |
 | GET | `/api/repos` | List repos for active GitHub account |
-| POST | `/api/repos/connect` | Start tracking a new repo |
-| GET | `/api/repos/:repoId/metrics` | Fetch metrics (`?from=ISO&to=ISO&type=COMMIT_COUNT`) |
+| POST | `/api/repos/connect` | Track a new repo — registers webhook + initial sync |
+| PATCH | `/api/repos/:repoId` | Toggle `isTracked` — registers or removes webhook |
+| GET | `/api/repos/:repoId/metrics` | Fetch metrics (`?from=ISO&to=ISO&type=MetricType`) |
 | GET | `/api/dashboard` | Aggregated metrics for all tracked repos in active account |
+| POST | `/api/webhooks/github` | Receive GitHub webhook events (HMAC validated) |
+| GET | `/api/sse/metrics` | SSE stream — pushes `metrics_updated` events to dashboard |
 | GET | `/api/auth/[...nextauth]` | NextAuth handlers |
+
+Full request/response contracts: see [`docs/SPEC.md §2.2`](docs/SPEC.md#22-api-contracts).
+
+---
+
+## Webhook Security
+
+Every incoming webhook is validated before any processing:
+
+1. **HMAC-SHA256**: Compute `sha256(secret, rawBody)` and compare to `X-Hub-Signature-256` header. Reject with 401 if mismatch.
+2. **Duplicate rejection**: `X-GitHub-Delivery` UUID stored in `WebhookEvent.deliveryId` with `@unique` — second delivery of same event returns 409.
+3. **Repo ownership**: `repository.full_name` and `repository.id` in payload must match a `Repository` record owned by the account whose secret was used.
+4. **Fast ack**: Return HTTP 200 within 500ms. Processing is async (`setImmediate`).
+
+The per-account `webhookSecret` is generated on first repo connect, encrypted with AES-256-GCM, and decrypted only in `src/app/api/webhooks/github/route.ts`.
 
 ---
 
@@ -244,13 +361,13 @@ Never return raw data without the envelope. Never throw unhandled errors from AP
 ### TypeScript
 - Strict mode enabled. Fix type errors — do not use `any` or `@ts-ignore`
 - Always add explicit return types to exported functions
-- Use Zod schemas in `src/types/index.ts` for all external input validation (API request bodies, env vars)
+- Use Zod schemas in `src/types/index.ts` for all external input validation
 - Prefer `type` over `interface` unless declaration merging is needed
 
 ### React / Next.js
 - Functional components only — no class components
 - Use `async/await` — never `.then()` chains
-- Server Components by default; add `'use client'` only when needed (event handlers, hooks, browser APIs)
+- Server Components by default; add `'use client'` only when needed
 - 2-space indentation, single quotes, no semicolons (Prettier enforced)
 - Component files: PascalCase (`AccountSwitcher.tsx`)
 - Utility files: camelCase (`githubClient.ts`)
@@ -259,6 +376,7 @@ Never return raw data without the envelope. Never throw unhandled errors from AP
 - Always use `src/lib/logger.ts` (Pino, structured JSON)
 - Log levels: `logger.info`, `logger.warn`, `logger.error`
 - Never use `console.log`, `console.error`, etc.
+- Pino is configured to redact `accessToken`, `webhookSecret`, and `*.accessToken`
 
 ### Database
 - All multi-table writes must use Prisma transactions
@@ -273,11 +391,14 @@ Never return raw data without the envelope. Never throw unhandled errors from AP
 - ❌ Create new utility files — add to existing `src/lib/utils.ts`
 - ❌ Use any CSS framework other than Tailwind CSS
 - ❌ Instantiate Octokit directly — use `getOctokitForAccount(accountId)` from `src/lib/github/client.ts`
-- ❌ Log or expose raw GitHub access tokens under any circumstances
+- ❌ Log or expose raw GitHub access tokens or webhook secrets under any circumstances
 - ❌ Assume a default GitHub account — always require explicit `accountId`
 - ❌ Modify `prisma/migrations/` manually — let Prisma CLI manage it
 - ❌ Modify the NextAuth session shape without updating `src/types/index.ts` and all consumers
 - ❌ Add API endpoints without the `{ success, data/error }` envelope
+- ❌ Decrypt `accessToken` anywhere except `src/lib/github/client.ts`
+- ❌ Decrypt `webhookSecret` anywhere except `src/app/api/webhooks/github/route.ts`
+- ❌ Process a webhook payload without first persisting it as a `WebhookEvent` (PENDING)
 - ❌ Modify the auth flow without discussing with the team lead
 - ❌ Use `.then()` chains — always `async/await`
 - ❌ Commit with failing lint or type errors
@@ -288,28 +409,50 @@ Never return raw data without the envelope. Never throw unhandled errors from AP
 
 - **Unit tests**: Pure functions, utilities, data transformers — in `tests/unit/`
 - **Integration tests**: API routes using test DB — in `tests/integration/`
-- **E2E tests**: Critical user flows (connect GitHub account, switch account, view dashboard) — in `tests/e2e/`
-- Test files for components are colocated: `AccountSwitcher.test.tsx` next to `AccountSwitcher.tsx`
+- **E2E tests**: Critical user flows — in `tests/e2e/`
+- Component tests are colocated: `AccountSwitcher.test.tsx` next to `AccountSwitcher.tsx`
 - Mock GitHub API calls in tests — never hit real GitHub from tests
-- Test DB requires: `docker compose up -d postgres-test`
+- Test DB requires: `docker compose up -d postgres-test` (port 5433)
+- Coverage target: >80%
+
+Key integration test areas:
+- Webhook HMAC validation + duplicate rejection
+- WebhookEvent persisted before processing (durability)
+- SSE broadcast after webhook processing
+- Ownership checks on all `:accountId` and `:repoId` routes
+
+---
+
+## Custom Claude Code Commands
+
+Three slash commands live in `.claude/commands/`:
+
+| Command | File | What it does |
+|---------|------|-------------|
+| `/sync-check` | `sync-check.md` | Audit webhook health: check PENDING/FAILED events, stale repos, last reconciliation run |
+| `/add-metric` | `add-metric.md` | Scaffold a new MetricType end-to-end: enum → processWebhookEvent → metrics.ts → chart → tests |
+| `/security-scan` | `security-scan.md` | Audit: token redaction in logs, HMAC validation coverage, ownership checks on all routes |
 
 ---
 
 ## MCP Integration (GitHub)
 
-Claude Code uses the GitHub MCP server for repo data operations.
+Claude Code uses the GitHub MCP server for repo data operations during development and sync.
 
 ```bash
-# Run Claude Code with GitHub MCP enabled
 npx @anthropic-ai/claude-code --mcp github
 ```
 
-The MCP server handles:
+The MCP server enables:
 - Listing repos for a given GitHub account
 - Fetching commit history, PR lists, review data
-- Pagination and rate limit management
+- Handling pagination and rate limit management
 
-The background sync job (`src/lib/github/sync.ts`) calls these via the GitHub client factory and writes normalized `Metric` records to the DB.
+Integration points in code:
+- `src/lib/github/client.ts` — creates Octokit instance (uses MCP as GitHub API transport)
+- `src/lib/github/metrics.ts` — calls Octokit to fetch and normalize GitHub data
+- `src/lib/github/webhooks.ts` — calls Octokit to register/delete webhooks
+- `src/lib/github/sync.ts` — reconciliation job uses Octokit for backfill
 
 ---
 
@@ -317,7 +460,7 @@ The background sync job (`src/lib/github/sync.ts`) calls these via the GitHub cl
 
 ```bash
 # Required
-DATABASE_URL=                  # PostgreSQL connection string
+DATABASE_URL=                  # PostgreSQL connection string (dev: port 5432)
 NEXTAUTH_SECRET=               # Random 32-char string
 NEXTAUTH_URL=                  # e.g. http://localhost:3000
 
@@ -325,12 +468,15 @@ NEXTAUTH_URL=                  # e.g. http://localhost:3000
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 
-# Encryption (for storing access tokens at rest)
+# Encryption (for access tokens + webhook secrets at rest)
 ENCRYPTION_KEY=                # 32-byte hex string
+
+# Webhooks (set to ngrok URL in dev; public domain in prod)
+WEBHOOK_BASE_URL=              # e.g. https://abc123.ngrok.io
 
 # Optional
 LOG_LEVEL=info                 # debug | info | warn | error
-SYNC_INTERVAL_MS=300000        # Default: 5 minutes
+SYNC_INTERVAL_MS=1800000       # Reconciliation interval (default: 30 min)
 ```
 
 Never commit `.env` files. Use `.env.example` as the template.
@@ -343,13 +489,13 @@ Never commit `.env` files. Use `.env.example` as the template.
 Push to PR branch:
   1. Lint (ESLint)
   2. Typecheck (tsc --noEmit)
-  3. Unit + Integration tests (Jest)
+  3. Unit + Integration tests (Jest) — spins up postgres-test service
   4. Build (next build)
 
 Merge to main:
   1. All above
-  2. E2E tests (Playwright, staging env)
-  3. Deploy to production
+  2. E2E tests (Playwright)
+  3. Deploy to production (rsync / Docker)
 ```
 
 All steps must pass before merge. No exceptions.
@@ -358,24 +504,27 @@ All steps must pass before merge. No exceptions.
 
 ## Known Issues & Gotchas
 
-- **Prisma client**: Always run `npx prisma generate` after any `schema.prisma` change or you'll get type errors at runtime
+- **Prisma client**: Always run `npx prisma generate` after any `schema.prisma` change
 - **Test DB**: Must be running (`docker compose up -d postgres-test`) before `npm test`
-- **GitHub rate limits**: The GitHub client respects rate limit headers. If metrics are stale, check sync job logs first
-- **Account switching latency**: After `POST /api/github-accounts/:id/switch`, call `router.refresh()` to re-fetch server components — do not rely on stale client state
-- **Token encryption**: `GitHubAccount.accessToken` is stored encrypted. Decrypt only in `src/lib/github/client.ts` — nowhere else
+- **GitHub rate limits**: Worker backs off 60s on 429. Check sync job logs if metrics are stale
+- **Account switching**: After `POST /api/github-accounts/:id/switch`, JWT is re-issued. Call `router.refresh()` to re-fetch server components
+- **Token encryption**: `GitHubAccount.accessToken` decrypted only in `src/lib/github/client.ts`
+- **Webhook secret**: `GitHubAccount.webhookSecret` decrypted only in `src/app/api/webhooks/github/route.ts`
+- **SSE + Node.js**: SSE connections are long-lived. The `src/lib/sse.ts` emitter holds refs to active `Response` streams — clean up on client disconnect to avoid memory leaks
+- **Local webhooks**: GitHub cannot reach `localhost`. Use `ngrok http 3000` in dev and set `WEBHOOK_BASE_URL` to the ngrok URL
 
 ---
 
 ## Adding a New GitHub Account (Flow Reference)
 
-1. User clicks "Connect GitHub Account" in `AccountSwitcher` or Settings
+1. User clicks "Connect GitHub Account" in AccountSwitcher or Settings
 2. App redirects to GitHub OAuth with `scope=repo,read:user`
 3. GitHub redirects back to `/api/auth/callback/github`
-4. NextAuth callback creates a new `GitHubAccount` record (encrypted token)
-5. If this is the user's first account, set it as `User.activeAccountId`
-6. Redirect to dashboard — new account appears in switcher
+4. NextAuth `signIn` callback: upsert `GitHubAccount` (encrypted token); if first account, set `User.activeAccountId`
+5. Session JWT is re-issued with updated `activeAccountId`
+6. Redirect to dashboard — new account appears in AccountSwitcher
 
 ---
 
-*Last updated: 2026-04-24*
+*Last updated: 2026-04-24*  
 *Maintainer: Praveen Kumar Srinivasan*
