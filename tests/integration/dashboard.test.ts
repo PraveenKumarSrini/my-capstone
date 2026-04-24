@@ -26,13 +26,15 @@ describe('GET /api/dashboard', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 400 when query params are missing', async () => {
+  it('returns 200 with defaults when query params are omitted', async () => {
     const user = await createTestUser()
     const acc = await createTestGitHubAccount(user.id)
     mockAuth.mockResolvedValueOnce({ user: { id: user.id, email: user.email!, activeAccountId: acc.id } } as never)
 
     const res = await GET(new Request('http://localhost/api/dashboard'))
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
   })
 
   it('returns aggregated dashboard data with correct structure', async () => {

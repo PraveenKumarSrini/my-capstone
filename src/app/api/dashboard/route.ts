@@ -5,8 +5,8 @@ import { z } from 'zod'
 import type { MetricType } from '@prisma/client'
 
 const DashboardQuerySchema = z.object({
-  from: z.string().datetime({ message: 'from must be an ISO datetime' }),
-  to: z.string().datetime({ message: 'to must be an ISO datetime' }),
+  from: z.string().datetime({ message: 'from must be an ISO datetime' }).optional(),
+  to: z.string().datetime({ message: 'to must be an ISO datetime' }).optional(),
 })
 
 export async function GET(request: Request): Promise<Response> {
@@ -27,8 +27,11 @@ export async function GET(request: Request): Promise<Response> {
       return apiError(parsed.error.errors[0].message, 400)
     }
 
-    const from = new Date(parsed.data.from)
-    const to = new Date(parsed.data.to)
+    const now = new Date()
+    const to = parsed.data.to ? new Date(parsed.data.to) : now
+    const from = parsed.data.from
+      ? new Date(parsed.data.from)
+      : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     const [aggregated, recentActivity, repos] = await Promise.all([
       getAggregatedMetrics(activeAccountId, from, to),

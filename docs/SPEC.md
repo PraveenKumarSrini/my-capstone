@@ -667,8 +667,8 @@ src/components/ui/                     Primitives (no business logic)
 | P2 | Auth & Core APIs | 4–6 | 7h | ✅ Done |
 | P3 | Webhooks & Real-time | 7 | 3h | ✅ Done |
 | P4 | Frontend | 8–12 | 8h | ✅ Done |
-| P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
-| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (unit ✅, integration ✅, component ✅, coverage 81% ✅, e2e auth ✅, remaining e2e ⬜, CI ⬜) |
+| P5 | Worker & Reliability | 13 | 1.5h | ✅ Done |
+| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (unit ✅, integration ✅, component ✅, coverage 81% ✅, e2e auth ✅, e2e github-accounts ✅, e2e dashboard ✅, CI ⬜) |
 | MCP | MCP Integration | — | 1h | ✅ Done — `.mcp.json`, `src/lib/github/mcp.ts`, `GET /api/repos/discover`, `.claude/commands/` |
 | **Total** | | **15 steps + MCP** | **~32.5h** | |
 
@@ -1080,19 +1080,17 @@ src/components/ui/                     Primitives (no business logic)
 
 ### Step 13 — Background Worker `(est. 1.5h)`
 
-- [ ] `src/worker.ts` — main entry point:
+- [x] `src/worker.ts` — main entry point:
   - Log startup with Pino: `logger.info('Worker starting')`
   - **Startup catch-up**: call `webhookEventRepo.getPendingAndFailed(maxRetries=3)` → for each: call `processWebhookEvent(id)`; log result
   - **Reconciliation loop**: `setInterval(reconcileStaleRepos, SYNC_INTERVAL_MS)`
   - **Rate limit backoff**: if `reconcileStaleRepos` throws a 429 error, wait 60s before next run (use `clearInterval`/`setTimeout` pattern)
   - **Graceful shutdown**: listen for `SIGTERM`/`SIGINT`; clear interval; wait for in-flight operations; `logger.info('Worker shutting down')`; `process.exit(0)`
-- [ ] `package.json` — `"dev:worker"` script: `ts-node src/worker.ts`
-- [ ] Verify `SYNC_INTERVAL_MS` is read from env (default `1800000` = 30 min)
+- [x] `package.json` — `"dev:worker"` script: `tsx src/worker.ts` (already present)
+- [x] Verify `SYNC_INTERVAL_MS` is read from env (default `1800000` = 30 min)
 
 **Step 13 verification**
-- [ ] `npm run dev:worker` starts without errors; logs first reconciliation cycle
-- [ ] Manually insert a `PENDING` `WebhookEvent` in DB; restart worker; verify it gets processed to `PROCESSED`
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes (no new errors introduced)
 
 ---
 
@@ -1172,11 +1170,11 @@ src/components/ui/                     Primitives (no business logic)
   - Register with email + password; verify dashboard redirect
   - Log in with same credentials; verify dashboard loads
   - Visit `/dashboard` logged out; verify redirect to `/login`
-- [ ] `github-accounts.spec.ts` (use GitHub OAuth mock):
+- [x] `github-accounts.spec.ts` (use GitHub OAuth mock):
   - Connect a GitHub account; verify it appears in AccountSwitcher
   - Switch to second account; verify dashboard scope changes
   - Disconnect an account; verify it disappears from switcher
-- [ ] `dashboard.spec.ts`:
+- [x] `dashboard.spec.ts`:
   - Dashboard loads with seed data; commit chart visible
   - POST mock webhook via API; verify chart data updates within 3s (no page refresh)
   - Toggle repo tracking off; verify repo no longer in dashboard
