@@ -668,7 +668,7 @@ src/components/ui/                     Primitives (no business logic)
 | P3 | Webhooks & Real-time | 7 | 3h | ✅ Done |
 | P4 | Frontend | 8–12 | 8h | ✅ Done |
 | P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
-| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit ✅, e2e auth ✅, remaining e2e/component ⬜) |
+| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (unit ✅, integration ✅, component ✅, coverage 81% ✅, e2e auth ✅, remaining e2e ⬜, CI ⬜) |
 | MCP | MCP Integration | — | 1h | ✅ Done — `.mcp.json`, `src/lib/github/mcp.ts`, `GET /api/repos/discover`, `.claude/commands/` |
 | **Total** | | **15 steps + MCP** | **~32.5h** | |
 
@@ -1113,14 +1113,19 @@ src/components/ui/                     Primitives (no business logic)
 **Unit tests** (`tests/unit/`)
 - [x] `crypto.test.ts` — encrypt then decrypt returns original string; different IVs produce different ciphertext; wrong key throws on decrypt
 - [x] `utils.test.ts` — `buildDateRange` with valid ISO strings; throws on invalid; `formatMetricValue` for each `MetricType`; `timeAgo` for various deltas
-- [ ] `processWebhookEvent.test.ts`:
+- [x] `processWebhookEvent.test.ts`:
   - `push` payload → inserts `COMMIT_COUNT` metric with correct value
   - `pull_request` (action=opened) → inserts `PR_OPENED`
   - `pull_request` (action=closed, merged=true) → inserts `PR_MERGED`
   - `pull_request` (action=closed, merged=false) → inserts `PR_CLOSED`
   - `pull_request_review` → inserts `REVIEW_COUNT`
   - Unknown event type → marks `WebhookEvent` as `FAILED`
-- [ ] `metrics.test.ts` — mock Octokit responses; verify commit list maps to `COMMIT_COUNT`; verify PR list maps to correct types; verify pagination is followed
+- [x] `metrics.test.ts` — mock Octokit responses; verify commit list maps to `COMMIT_COUNT`; verify PR list maps to correct types; verify pagination is followed
+- [x] `sync.test.ts` — reconcileStaleRepos: no stale repos skips fetch; fetches metrics and updates lastSyncedAt; null lastSyncedAt falls back to 35-min window; error on one repo continues to next
+- [x] `sse.test.ts` — subscribe/unsubscribe/broadcast; broadcast delivers to all active subscribers
+- [x] `client.test.ts` — getOctokitForAccount: decrypts token and returns Octokit; throws ApiException when account missing
+- [x] `webhooks.test.ts` — registerWebhook: reuses existing secret, generates new one when absent; deleteWebhook: silently ignores 404, rethrows other errors
+- [x] `mcp.test.ts` — searchGitHubReposViaMCP: throws when account missing; query scoped to user; maps items to MCPRepoResult; closes client on error
 
 **Integration tests** (`tests/integration/`) — all use postgres-test DB; reset between tests
 - [x] `github-accounts.test.ts` — GET returns only authed user's accounts; DELETE cascades and removes webhooks; switch updates `activeAccountId`; ownership check returns 404
@@ -1130,8 +1135,37 @@ src/components/ui/                     Primitives (no business logic)
 - [x] `sse.test.ts` — unauthenticated → 401; authenticated → SSE connection established; after `processWebhookEvent`, `broadcast` called with correct accountId
 
 **Component tests** (colocated)
-- [ ] `src/components/layout/AccountSwitcher.test.tsx` — renders accounts; clicking triggers switch API call; loading state shown during switch; `router.refresh` called after
-- [ ] `src/components/charts/CommitChart.test.tsx` — renders with data; shows empty state when data is `[]`; shows loading skeleton when `isLoading`
+- [x] `src/components/layout/AccountSwitcher.test.tsx` — renders accounts; clicking triggers switch API call; loading state shown during switch; `router.refresh` called after
+- [x] `src/components/charts/CommitChart.test.tsx` — renders with data; shows empty state when data is `[]`; shows loading skeleton when `isLoading`
+- [x] `src/components/charts/PRChart.test.tsx` — renders BarChart with data; empty state; loading skeleton
+- [x] `src/components/charts/MetricsChart.test.tsx` — renders LineChart with data; empty state; loading skeleton
+- [x] `src/components/dashboard/MetricCard.test.tsx` — renders label/value; positive/negative delta classes; loading skeleton
+- [x] `src/components/dashboard/MetricsSummaryBar.test.tsx` — renders all four cards; passes summary values and isLoading
+- [x] `src/components/dashboard/SyncStatusBar.test.tsx` — Live/Connecting/Disconnected states; lastSyncedAt display
+- [x] `src/components/layout/AccountAvatar.test.tsx` — img when avatarUrl set; initials fallback; size variants
+- [x] `src/components/layout/Header.test.tsx` — title/breadcrumb; user name; signOut on click
+- [x] `src/components/layout/NavLinks.test.tsx` — active link highlighting (exact vs prefix); correct hrefs
+- [x] `src/components/ui/Badge.test.tsx` — all four variants render correct classes
+- [x] `src/components/ui/Button.test.tsx` — variant/size/disabled/isLoading/spinner states
+- [x] `src/components/ui/ErrorBoundary.test.tsx` — renders children; default/custom fallback; logs error; resets on "Try again"
+- [x] `src/components/ui/Modal.test.tsx` — hidden when closed; title/children; backdrop/close-button/Escape all call onClose
+- [x] `src/components/repos/ActivityFeed.test.tsx` — loading skeleton; empty state; event list with badge
+- [x] `src/components/repos/ConnectRepoForm.test.tsx` — validation error; successful connect; API error; button disabled when empty
+- [x] `src/components/repos/DateRangePicker.test.tsx` — onChange guards (from ≤ to; to ≥ from)
+- [x] `src/components/repos/MetricTypeSelector.test.tsx` — all six options; onChange fires with correct MetricType
+- [x] `src/components/repos/RepoCard.test.tsx` — webhook/tracked badges; sync time; onToggleTrack called with inverted value
+- [x] `src/components/repos/RepoSelector.test.tsx` — loading skeleton; empty state; error state; renders RepoCard per repo
+- [x] `src/components/repos/RepoSyncStatus.test.tsx` — webhook status badge; lastSyncedAt display
+- [x] `src/components/settings/AccountRow.test.tsx` — Active badge; modal open/cancel/confirm disconnect
+- [x] `src/components/settings/GitHubAccountsManager.test.tsx` — loading/empty/accounts list states
+- [x] `src/components/auth/GitHubOAuthButton.test.tsx` — calls signIn; shows spinner; disables button while loading
+- [x] `src/components/auth/LoginForm.test.tsx` — credentials signIn; error on bad credentials; redirect on success
+- [x] `src/components/auth/RegisterForm.test.tsx` — password length validation; successful registration; API error
+- [x] `src/hooks/useActiveAccount.test.ts` — null key when no session; returns accounts/activeAccountId from SWR
+- [x] `src/hooks/useMetrics.test.ts` — builds correct URL key with encoded params
+- [x] `src/hooks/useRepos.test.ts` — uses /api/repos key; returns repos array
+- [x] `src/hooks/useSSE.test.ts` — EventSource lifecycle; connected/heartbeat/error events; metrics_updated calls mutate; closes on unmount
+- [x] `tests/integration/webhookEventRepo.test.ts` — enqueue/markProcessing/markProcessed/markFailed/getPendingAndFailed/isDuplicate against real DB
 
 **E2E tests** (`tests/e2e/`)
 - [x] `auth.spec.ts`:
@@ -1148,8 +1182,8 @@ src/components/ui/                     Primitives (no business logic)
   - Toggle repo tracking off; verify repo no longer in dashboard
 
 **Step 14 verification**
-- [x] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass (80/80: 32 unit + 48 integration)
-- [ ] `npm run test:coverage` — coverage report shows ≥80% lines
+- [x] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass
+- [x] `npm run test:coverage` — coverage report shows ≥80% lines (308 tests, 81.06% lines)
 - [ ] `npm run test:e2e` (with `npm run dev` running) — all E2E tests pass
 
 ---
