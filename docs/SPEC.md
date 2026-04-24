@@ -645,7 +645,7 @@ src/components/ui/                     Primitives (no business logic)
 | P3 | Webhooks & Real-time | 7 | 3h | ✅ Done |
 | P4 | Frontend | 8–12 | 8h | ✅ Done |
 | P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
-| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit/e2e ⬜) |
+| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit ✅, e2e auth ✅, remaining e2e/component ⬜) |
 | **Total** | | **15 steps** | **~31.5h** | |
 
 > Update status to 🔄 In Progress → ✅ Done as phases complete.
@@ -796,9 +796,9 @@ src/components/ui/                     Primitives (no business logic)
 - [x] `src/app/page.tsx` — redirect `/` to `/dashboard` if authenticated, else to `/login`
 
 **Step 4 verification**
-- [ ] Register a new user via form; verify `User` row in DB with hashed password
-- [ ] Log in with credentials; verify JWT session; visit `/dashboard` directly
-- [ ] Visit `/dashboard` while logged out; verify redirect to `/login`
+- [x] Register a new user via form; verify `User` row in DB with hashed password
+- [x] Log in with credentials; verify JWT session; visit `/dashboard` directly
+- [x] Visit `/dashboard` while logged out; verify redirect to `/login`
 - [x] `npm run typecheck` passes
 
 ---
@@ -880,10 +880,10 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 6 verification**
 - [x] `npm run typecheck` passes
-- [ ] Manual: `GET /api/github-accounts` returns seed accounts
-- [ ] Manual: `GET /api/repos` returns seed repos
-- [ ] Manual: `GET /api/repos/:id/metrics?from=...&to=...&type=COMMIT_COUNT` returns seed metrics
-- [ ] Manual: `GET /api/dashboard` returns aggregated data
+- [x] Manual: `GET /api/github-accounts` returns seed accounts
+- [x] Manual: `GET /api/repos` returns seed repos
+- [x] Manual: `GET /api/repos/:id/metrics?from=...&to=...&type=COMMIT_COUNT` returns seed metrics
+- [x] Manual: `GET /api/dashboard` returns aggregated data
 
 ---
 
@@ -920,9 +920,9 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 7 verification**
 - [x] `npm run typecheck` passes
-- [ ] Manual: POST a valid signed push payload to `/api/webhooks/github` — verify `WebhookEvent` row with `status: PROCESSED` appears in DB
-- [ ] Manual: POST with wrong HMAC — verify `401` returned
-- [ ] Manual: POST same `X-GitHub-Delivery` twice — verify `409` on second request
+- [x] Manual: POST a valid signed push payload to `/api/webhooks/github` — verify `WebhookEvent` row with `status: PROCESSED` appears in DB
+- [x] Manual: POST with wrong HMAC — verify `401` returned
+- [x] Manual: POST same `X-GitHub-Delivery` twice — verify `409` on second request
 - [ ] Manual: Open `/api/sse/metrics` in browser (or `curl -N`) — verify heartbeat arrives every 30s
 - [ ] Manual: Post webhook while SSE connection is open — verify `metrics_updated` event arrives on SSE stream
 
@@ -1084,11 +1084,11 @@ src/components/ui/                     Primitives (no business logic)
 **Test infrastructure**
 - [x] `jest.config.ts` — `testEnvironment: jsdom` for component tests; `testEnvironment: node` for API/unit; `moduleNameMapper` for `@/*` alias; `transform` for TypeScript
 - [x] `jest.setup.ts` — import `@testing-library/jest-dom`; mock `next/navigation`; set `process.env.DATABASE_URL` to postgres-test URL
-- [ ] `playwright.config.ts` — baseURL `http://localhost:3000`; single `chromium` project for CI speed; retries: 2
+- [x] `playwright.config.ts` — baseURL `http://localhost:3000`; single `chromium` project for CI speed; retries: 2
 
 **Unit tests** (`tests/unit/`)
-- [ ] `crypto.test.ts` — encrypt then decrypt returns original string; different IVs produce different ciphertext; wrong key throws on decrypt
-- [ ] `utils.test.ts` — `buildDateRange` with valid ISO strings; throws on invalid; `formatMetricValue` for each `MetricType`; `timeAgo` for various deltas
+- [x] `crypto.test.ts` — encrypt then decrypt returns original string; different IVs produce different ciphertext; wrong key throws on decrypt
+- [x] `utils.test.ts` — `buildDateRange` with valid ISO strings; throws on invalid; `formatMetricValue` for each `MetricType`; `timeAgo` for various deltas
 - [ ] `processWebhookEvent.test.ts`:
   - `push` payload → inserts `COMMIT_COUNT` metric with correct value
   - `pull_request` (action=opened) → inserts `PR_OPENED`
@@ -1110,7 +1110,7 @@ src/components/ui/                     Primitives (no business logic)
 - [ ] `src/components/charts/CommitChart.test.tsx` — renders with data; shows empty state when data is `[]`; shows loading skeleton when `isLoading`
 
 **E2E tests** (`tests/e2e/`)
-- [ ] `auth.spec.ts`:
+- [x] `auth.spec.ts`:
   - Register with email + password; verify dashboard redirect
   - Log in with same credentials; verify dashboard loads
   - Visit `/dashboard` logged out; verify redirect to `/login`
@@ -1124,7 +1124,7 @@ src/components/ui/                     Primitives (no business logic)
   - Toggle repo tracking off; verify repo no longer in dashboard
 
 **Step 14 verification**
-- [x] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass (48/48 integration tests)
+- [x] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass (80/80: 32 unit + 48 integration)
 - [ ] `npm run test:coverage` — coverage report shows ≥80% lines
 - [ ] `npm run test:e2e` (with `npm run dev` running) — all E2E tests pass
 
