@@ -17,6 +17,27 @@ async function requireRepoOwnership(repoId: string, userId: string) {
   return { repo, account }
 }
 
+export async function GET(
+  _request: Request,
+  { params }: RouteContext
+): Promise<Response> {
+  try {
+    const { repoId } = await params
+    const session = await requireAuth()
+    const { repo } = await requireRepoOwnership(repoId, session.user.id)
+
+    return apiSuccess({
+      id: repo.id,
+      fullName: repo.fullName,
+      isTracked: repo.isTracked,
+      lastSyncedAt: repo.lastSyncedAt?.toISOString() ?? null,
+      webhookStatus: repo.webhookId ? 'active' : repo.isTracked ? 'missing' : 'unregistered',
+    })
+  } catch (error) {
+    return handleApiError(error)
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: RouteContext

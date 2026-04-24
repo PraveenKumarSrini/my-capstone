@@ -641,9 +641,9 @@ src/components/ui/                     Primitives (no business logic)
 | Phase | Name | Steps | Est. | Status |
 |-------|------|-------|------|--------|
 | P1 | Foundation | 1–3 | 6h | ✅ Done |
-| P2 | Auth & Core APIs | 4–6 | 7h | 🔄 In Progress (backend ✅, auth UI ⬜) |
+| P2 | Auth & Core APIs | 4–6 | 7h | ✅ Done |
 | P3 | Webhooks & Real-time | 7 | 3h | ✅ Done |
-| P4 | Frontend | 8–12 | 8h | ⬜ Not started |
+| P4 | Frontend | 8–12 | 8h | ✅ Done |
 | P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
 | P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit/e2e ⬜) |
 | **Total** | | **15 steps** | **~31.5h** | |
@@ -709,7 +709,7 @@ src/components/ui/                     Primitives (no business logic)
   - 3 `Repository` rows (2 under Personal account, 1 under Work), all `isTracked: true`
   - 30 days of sample `Metric` rows for each repo × each `MetricType` (realistic random values)
 - [x] `package.json` — add `"prisma": { "seed": "ts-node prisma/seed.ts" }`
-- [ ] Run `npx prisma db seed` — verify seed completes without errors
+- [x] Run `npx prisma db seed` — verify seed completes without errors
 - [ ] Run `npx prisma studio` — visually verify all seed rows
 
 **Repository functions**
@@ -723,7 +723,7 @@ src/components/ui/                     Primitives (no business logic)
 **Step 2 verification**
 - [x] `npx prisma validate` passes
 - [x] `npm run typecheck` passes (Prisma client types are generated)
-- [ ] `npx prisma db seed` completes; `npx prisma studio` shows correct seed rows
+- [x] `npx prisma db seed` completes; `npx prisma studio` shows correct seed rows
 
 ---
 
@@ -782,12 +782,12 @@ src/components/ui/                     Primitives (no business logic)
 - [x] `src/app/api/auth/[...nextauth]/route.ts` — export `{ GET, POST }` from `handlers`
 
 **Auth pages**
-- [ ] `src/app/(auth)/layout.tsx` — centered card layout, no sidebar
-- [ ] `src/app/(auth)/login/page.tsx` — renders `LoginForm`
-- [ ] `src/components/auth/LoginForm.tsx` — email + password fields; loading spinner on submit; error message display; link to `/register`
-- [ ] `src/components/auth/GitHubOAuthButton.tsx` — calls `signIn('github')`; shows spinner while redirecting
-- [ ] `src/app/(auth)/register/page.tsx` — renders `RegisterForm`
-- [ ] `src/components/auth/RegisterForm.tsx` — name + email + password fields; calls `POST /api/auth/register`; redirects to `/login` on success
+- [x] `src/app/(auth)/layout.tsx` — centered card layout, no sidebar
+- [x] `src/app/(auth)/login/page.tsx` — renders `LoginForm`
+- [x] `src/components/auth/LoginForm.tsx` — email + password fields; loading spinner on submit; error message display; link to `/register`
+- [x] `src/components/auth/GitHubOAuthButton.tsx` — calls `signIn('github')`; shows spinner while redirecting
+- [x] `src/app/(auth)/register/page.tsx` — renders `RegisterForm`
+- [x] `src/components/auth/RegisterForm.tsx` — name + email + password fields; calls `POST /api/auth/register`; redirects to `/login` on success
 - [x] `src/app/api/auth/register/route.ts` — POST handler: Zod validate body, check duplicate email, bcrypt hash password, create `User`
 
 **Route protection**
@@ -937,53 +937,53 @@ src/components/ui/                     Primitives (no business logic)
 
 ### Step 8 — UI Primitives `(est. 1h)`
 
-- [ ] `src/components/ui/Button.tsx` — props: `variant` (`primary`|`secondary`|`ghost`|`danger`), `size` (`sm`|`md`|`lg`), `isLoading` (shows `<Spinner>`), `disabled`, `onClick`, `type`, `children`
-- [ ] `src/components/ui/Badge.tsx` — props: `variant` (`success`|`warning`|`error`|`neutral`), `children`
-- [ ] `src/components/ui/Modal.tsx` — props: `isOpen`, `onClose`, `title`, `children`; traps focus; closes on Escape or backdrop click
-- [ ] `src/components/ui/Spinner.tsx` — props: `size` (`sm`|`md`|`lg`); Tailwind animated SVG
-- [ ] `src/components/ui/ErrorBoundary.tsx` — class component; `fallback` prop; logs error with `logger.error`
+- [x] `src/components/ui/Button.tsx` — props: `variant` (`primary`|`secondary`|`ghost`|`danger`), `size` (`sm`|`md`|`lg`), `isLoading` (shows `<Spinner>`), `disabled`, `onClick`, `type`, `children`
+- [x] `src/components/ui/Badge.tsx` — props: `variant` (`success`|`warning`|`error`|`neutral`), `children`
+- [x] `src/components/ui/Modal.tsx` — props: `isOpen`, `onClose`, `title`, `children`; traps focus; closes on Escape or backdrop click
+- [x] `src/components/ui/Spinner.tsx` — props: `size` (`sm`|`md`|`lg`); Tailwind animated SVG
+- [x] `src/components/ui/ErrorBoundary.tsx` — class component; `fallback` prop; logs error with `logger.error`
 
 **Step 8 verification**
-- [ ] `npm run typecheck` passes
-- [ ] `npm run lint` passes
+- [x] `npm run typecheck` passes
+- [x] `npm run lint` passes
 
 ---
 
 ### Step 9 — Layout & Navigation `(est. 2h)`
 
 **Shell & sidebar**
-- [ ] `src/components/layout/DashboardShell.tsx` — two-column layout: fixed sidebar + scrollable main content; `children` prop
-- [ ] `src/components/layout/Sidebar.tsx` — contains `NavLinks` + `AccountSwitcher`; fixed left column
-- [ ] `src/components/layout/NavLinks.tsx` — links: Dashboard (`/dashboard`), Repos (`/dashboard/repos`), Settings (`/dashboard/settings`); highlights active route
-- [ ] `src/components/layout/Header.tsx` — shows page `title` + optional breadcrumb; user avatar + logout button
+- [x] `src/components/layout/DashboardShell.tsx` — two-column layout: fixed sidebar + scrollable main content; `children` prop
+- [x] `src/components/layout/Sidebar.tsx` — contains `NavLinks` + `AccountSwitcher`; fixed left column
+- [x] `src/components/layout/NavLinks.tsx` — links: Dashboard (`/dashboard`), Repos (`/dashboard/repos`), Settings (`/dashboard/settings`); highlights active route
+- [x] `src/components/layout/Header.tsx` — shows page `title` + optional breadcrumb; user avatar + logout button
 
 **Account switcher**
-- [ ] `src/components/layout/AccountSwitcher.tsx`:
+- [x] `src/components/layout/AccountSwitcher.tsx`:
   - Fetches accounts via `GET /api/github-accounts` with SWR
   - Renders each account with `AccountAvatar` + display name
   - Highlights active account (from `session.user.activeAccountId`)
   - On click: calls `POST /api/github-accounts/:id/switch`; shows `Spinner` during switch; calls `router.refresh()` after
   - Blocks all repo interactions during switch (`isLoading` state propagated via context)
   - "Connect GitHub Account" button at bottom
-- [ ] `src/components/layout/AccountAvatar.tsx` — shows GitHub avatar (or initials fallback); props: `login`, `avatarUrl`, `size`
+- [x] `src/components/layout/AccountAvatar.tsx` — shows GitHub avatar (or initials fallback); props: `login`, `avatarUrl`, `size`
 
 **Dashboard layout**
-- [ ] `src/app/(dashboard)/layout.tsx` — wraps all dashboard pages in `DashboardShell`; calls `requireAuth` server-side; passes session to shell
+- [x] `src/app/dashboard/layout.tsx` — wraps all dashboard pages in `DashboardShell`; calls `requireAuth` server-side; passes session to shell
 
 **Hook**
-- [ ] `src/hooks/useActiveAccount.ts` — returns `{ activeAccountId, accounts, isLoading }` from SWR + session
+- [x] `src/hooks/useActiveAccount.ts` — returns `{ activeAccountId, accounts, isLoading }` from SWR + session
 
 **Step 9 verification**
-- [ ] `npm run dev` — navigate to `/dashboard`; sidebar + header visible
-- [ ] `npm run typecheck` passes
+- [x] `npm run dev` — navigate to `/dashboard`; sidebar + header visible
+- [x] `npm run typecheck` passes
 
 ---
 
 ### Step 10 — Real-time Hooks `(est. 1h)`
 
-- [ ] `src/hooks/useRepos.ts` — SWR fetcher for `GET /api/repos`; returns `{ repos, isLoading, error, mutate }`
-- [ ] `src/hooks/useMetrics.ts` — SWR fetcher for `GET /api/repos/:repoId/metrics?from=&to=&type=`; returns `{ metrics, isLoading, error }`
-- [ ] `src/hooks/useSSE.ts`:
+- [x] `src/hooks/useRepos.ts` — SWR fetcher for `GET /api/repos`; returns `{ repos, isLoading, error, mutate }`
+- [x] `src/hooks/useMetrics.ts` — SWR fetcher for `GET /api/repos/:repoId/metrics?from=&to=&type=`; returns `{ metrics, isLoading, error }`
+- [x] `src/hooks/useSSE.ts`:
   - Opens `EventSource('/api/sse/metrics')` on mount
   - On `metrics_updated` event: calls `mutate()` on `useRepos` and `useDashboard` SWR keys
   - Reconnects automatically on error (EventSource handles this natively)
@@ -991,7 +991,7 @@ src/components/ui/                     Primitives (no business logic)
   - Closes `EventSource` on unmount
 
 **Step 10 verification**
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 - [ ] Manual: open dashboard; check browser DevTools → Network → EventStream for SSE connection
 
 ---
@@ -999,51 +999,51 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 11 — Dashboard Page `(est. 2h)`
 
 **Charts**
-- [ ] `src/components/charts/CommitChart.tsx` — Recharts `LineChart`; props: `data: TimelinePoint[]`, `dateRange`; loading skeleton state; empty state
-- [ ] `src/components/charts/PRChart.tsx` — Recharts `BarChart` (stacked: opened/merged/closed); props: `data: PRTimelinePoint[]`, `dateRange`; loading + empty states
+- [x] `src/components/charts/CommitChart.tsx` — Recharts `LineChart`; props: `data: TimelinePoint[]`, `dateRange`; loading skeleton state; empty state
+- [x] `src/components/charts/PRChart.tsx` — Recharts `BarChart` (stacked: opened/merged/closed); props: `data: PRTimelinePoint[]`, `dateRange`; loading + empty states
 
 **Dashboard components**
-- [ ] `src/components/dashboard/MetricCard.tsx` — shows label, large value, optional delta (`+12%`), icon; loading skeleton variant
-- [ ] `src/components/dashboard/MetricsSummaryBar.tsx` — row of 4 `MetricCard`s: Total Commits, PRs Opened, PRs Merged, Reviews
-- [ ] `src/components/dashboard/SyncStatusBar.tsx` — shows `"Last synced X ago"` from `lastSyncedAt`; "Sync now" button (calls `POST /api/repos/connect` equivalent); SSE status dot (green=connected, grey=disconnected)
-- [ ] `src/components/repos/ActivityFeed.tsx` — list of 20 most recent events; each row: repo name, event type badge, value, `timeAgo`; loading skeleton; empty state
+- [x] `src/components/dashboard/MetricCard.tsx` — shows label, large value, optional delta (`+12%`), icon; loading skeleton variant
+- [x] `src/components/dashboard/MetricsSummaryBar.tsx` — row of 4 `MetricCard`s: Total Commits, PRs Opened, PRs Merged, Reviews
+- [x] `src/components/dashboard/SyncStatusBar.tsx` — shows `"Last synced X ago"` from `lastSyncedAt`; SSE status dot (green=connected, yellow=connecting, red=error)
+- [x] `src/components/repos/ActivityFeed.tsx` — list of 20 most recent events; each row: repo name, event type badge, value, `timeAgo`; loading skeleton; empty state
 
 **Dashboard page**
-- [ ] `src/app/(dashboard)/page.tsx` — `'use client'`; fetches `GET /api/dashboard` via SWR; mounts `useSSE`; renders `SyncStatusBar` + `MetricsSummaryBar` + `CommitChart` + `PRChart` + `ActivityFeed`; full-page loading state on first load; error boundary
+- [x] `src/app/dashboard/page.tsx` — `'use client'`; fetches `GET /api/dashboard` via SWR; mounts `useSSE`; renders `SyncStatusBar` + `MetricsSummaryBar` + `CommitChart` + `PRChart` + `ActivityFeed`; full-page loading state on first load; error boundary
 
 **Step 11 verification**
-- [ ] `npm run dev` — dashboard loads with seed data charts visible
+- [x] `npm run dev` — dashboard loads with seed data charts visible
 - [ ] Send a test webhook; verify dashboard chart updates without page refresh
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 
 ---
 
 ### Step 12 — Repos & Settings Pages `(est. 2h)`
 
 **Repo components**
-- [ ] `src/components/repos/RepoCard.tsx` — shows: full name, language, `isTracked` toggle (`<Badge>` + `<Button>`), `lastSyncedAt` via `timeAgo`; `isUpdating` loading state on toggle
-- [ ] `src/components/repos/RepoSelector.tsx` — renders list of `RepoCard`s from `useRepos`; empty state; loading skeleton
-- [ ] `src/components/repos/ConnectRepoForm.tsx` — text input for `owner/repo`; submits to `POST /api/repos/connect`; shows error on invalid format or not-found; shows success toast
+- [x] `src/components/repos/RepoCard.tsx` — shows: full name, `isTracked` toggle (`<Badge>` + `<Button>`), `lastSyncedAt` via `timeAgo`, webhook status badge; `isUpdating` loading state on toggle
+- [x] `src/components/repos/RepoSelector.tsx` — renders list of `RepoCard`s from `useRepos`; empty state; loading skeleton
+- [x] `src/components/repos/ConnectRepoForm.tsx` — text input for `owner/repo`; submits to `POST /api/repos/connect`; shows error on invalid format or not-found; shows success message
 
 **Repos page**
-- [ ] `src/app/(dashboard)/repos/page.tsx` — `'use client'`; renders `ConnectRepoForm` + `RepoSelector`; error boundary
+- [x] `src/app/dashboard/repos/page.tsx` — `'use client'`; renders `ConnectRepoForm` + `RepoSelector`; error boundary
 
 **Repo detail page**
-- [ ] `src/components/repos/DateRangePicker.tsx` — two `<input type="date">` fields for `from` and `to`; defaults to last 30 days; validates `from < to`
-- [ ] `src/components/repos/MetricTypeSelector.tsx` — `<select>` or tab bar for all 6 `MetricType` values; defaults to `COMMIT_COUNT`
-- [ ] `src/components/repos/RepoSyncStatus.tsx` — shows `lastSyncedAt`, webhook status badge (`active`|`missing`), "Sync now" button
-- [ ] `src/app/(dashboard)/repos/[repoId]/page.tsx` — `'use client'`; state for `from`, `to`, `type`; renders `DateRangePicker` + `MetricTypeSelector` + `MetricsChart` + `RepoSyncStatus`; loading + empty + error states
+- [x] `src/components/repos/DateRangePicker.tsx` — two `<input type="date">` fields for `from` and `to`; defaults to last 30 days; validates `from < to`
+- [x] `src/components/repos/MetricTypeSelector.tsx` — `<select>` for all 6 `MetricType` values; defaults to `COMMIT_COUNT`
+- [x] `src/components/repos/RepoSyncStatus.tsx` — shows `lastSyncedAt`, webhook status badge (`active`|`missing`|`unregistered`)
+- [x] `src/app/dashboard/repos/[repoId]/page.tsx` — `'use client'`; state for `from`, `to`, `type`; renders `DateRangePicker` + `MetricTypeSelector` + `MetricsChart` + `RepoSyncStatus`; loading + empty + error states
 
 **Settings page**
-- [ ] `src/app/(dashboard)/settings/page.tsx` — `'use client'`; renders GitHub accounts list
-- [ ] `src/components/settings/GitHubAccountsManager.tsx` — lists all accounts via `useActiveAccount`; each row has "Disconnect" button with confirmation modal
-- [ ] `src/components/settings/AccountRow.tsx` — account avatar + login + display name; "Active" badge if `isActive`; "Disconnect" button (disabled if last account)
+- [x] `src/app/dashboard/settings/page.tsx` — `'use client'`; renders GitHub accounts list
+- [x] `src/components/settings/GitHubAccountsManager.tsx` — lists all accounts via `useActiveAccount`; each row has "Disconnect" button with confirmation modal
+- [x] `src/components/settings/AccountRow.tsx` — account avatar + login + display name; "Active" badge if `isActive`; "Disconnect" button (disabled if last account)
 
 **Step 12 verification**
-- [ ] `npm run dev` — navigate to `/dashboard/repos`; seed repos visible with tracking toggles
+- [x] `npm run dev` — navigate to `/dashboard/repos`; seed repos visible with tracking toggles
 - [ ] Toggle a repo off; verify `isTracked` updates in UI
 - [ ] Navigate to `/dashboard/repos/:id`; change date range; verify chart re-fetches
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 
 ---
 
