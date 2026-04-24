@@ -396,6 +396,29 @@ type Repository = {
 
 ---
 
+#### `GET /api/repos/discover`
+Search the active GitHub account's repositories via the GitHub MCP server. Used by the Connect Repo UI to browse available repos instead of typing `owner/repo` manually.
+
+**Auth:** Required  
+**Query params:**
+```
+?q=<optional-search-term>    // filters by repo name via MCP search_repositories tool
+```
+**Response `data`:** `MCPRepoResult[]`
+```typescript
+type MCPRepoResult = {
+  fullName: string
+  description: string | null
+  language: string | null
+  isPrivate: boolean
+  updatedAt: string | null
+  htmlUrl: string
+}
+```
+**Notes:** Spawns `@modelcontextprotocol/server-github` as a child process using the account's OAuth token. Not suitable for high-frequency polling; call only on user interaction.
+
+---
+
 #### `POST /api/repos/connect`
 Start tracking a new repository. Registers webhook and triggers initial sync.
 
@@ -646,7 +669,8 @@ src/components/ui/                     Primitives (no business logic)
 | P4 | Frontend | 8–12 | 8h | ✅ Done |
 | P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
 | P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit ✅, e2e auth ✅, remaining e2e/component ⬜) |
-| **Total** | | **15 steps** | **~31.5h** | |
+| MCP | MCP Integration | — | 1h | ✅ Done — `.mcp.json`, `src/lib/github/mcp.ts`, `GET /api/repos/discover`, `.claude/commands/` |
+| **Total** | | **15 steps + MCP** | **~32.5h** | |
 
 > Update status to 🔄 In Progress → ✅ Done as phases complete.
 
@@ -710,7 +734,7 @@ src/components/ui/                     Primitives (no business logic)
   - 30 days of sample `Metric` rows for each repo × each `MetricType` (realistic random values)
 - [x] `package.json` — add `"prisma": { "seed": "ts-node prisma/seed.ts" }`
 - [x] Run `npx prisma db seed` — verify seed completes without errors
-- [ ] Run `npx prisma studio` — visually verify all seed rows
+- [x] Run `npx prisma studio` — visually verify all seed rows
 
 **Repository functions**
 - [x] `src/lib/db.ts` — Prisma client singleton (checks `globalThis.__prisma` to prevent hot-reload duplication)
@@ -844,7 +868,7 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 5 verification**
 - [x] `npm run typecheck` passes
-- [ ] Manual: call `getOctokitForAccount` with seed account ID; verify Octokit resolves without error
+- [x] Manual: call `getOctokitForAccount` with seed account ID; verify Octokit resolves without error
 
 ---
 
@@ -923,8 +947,8 @@ src/components/ui/                     Primitives (no business logic)
 - [x] Manual: POST a valid signed push payload to `/api/webhooks/github` — verify `WebhookEvent` row with `status: PROCESSED` appears in DB
 - [x] Manual: POST with wrong HMAC — verify `401` returned
 - [x] Manual: POST same `X-GitHub-Delivery` twice — verify `409` on second request
-- [ ] Manual: Open `/api/sse/metrics` in browser (or `curl -N`) — verify heartbeat arrives every 30s
-- [ ] Manual: Post webhook while SSE connection is open — verify `metrics_updated` event arrives on SSE stream
+- [x] Manual: Open `/api/sse/metrics` in browser (or `curl -N`) — verify heartbeat arrives every 30s
+- [x] Manual: Post webhook while SSE connection is open — verify `metrics_updated` event arrives on SSE stream
 
 ---
 
@@ -992,7 +1016,7 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 10 verification**
 - [x] `npm run typecheck` passes
-- [ ] Manual: open dashboard; check browser DevTools → Network → EventStream for SSE connection
+- [x] Manual: open dashboard; check browser DevTools → Network → EventStream for SSE connection
 
 ---
 
@@ -1013,7 +1037,7 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 11 verification**
 - [x] `npm run dev` — dashboard loads with seed data charts visible
-- [ ] Send a test webhook; verify dashboard chart updates without page refresh
+- [x] Send a test webhook; verify dashboard chart updates without page refresh
 - [x] `npm run typecheck` passes
 
 ---
@@ -1041,8 +1065,8 @@ src/components/ui/                     Primitives (no business logic)
 
 **Step 12 verification**
 - [x] `npm run dev` — navigate to `/dashboard/repos`; seed repos visible with tracking toggles
-- [ ] Toggle a repo off; verify `isTracked` updates in UI
-- [ ] Navigate to `/dashboard/repos/:id`; change date range; verify chart re-fetches
+- [x] Toggle a repo off; verify `isTracked` updates in UI
+- [x] Navigate to `/dashboard/repos/:id`; change date range; verify chart re-fetches
 - [x] `npm run typecheck` passes
 
 ---
@@ -1273,7 +1297,7 @@ src/components/ui/                     Primitives (no business logic)
 | Database design | 10 | 6 models; migrations; `prisma/seed.ts` with demo data |
 | Frontend implementation | 10 | 15+ components; Tailwind; loading/error states on every data fetch |
 | Production readiness | 10 | CI/CD (GitHub Actions); error handling; security audit (§5.3) |
-| MCP integration | 10 | GitHub MCP server in `client.ts`; drives repo listing, commits, PRs, reviews |
+| MCP integration | 10 | ✅ `.mcp.json` (GitHub + filesystem servers); `src/lib/github/mcp.ts` (`searchGitHubReposViaMCP`); `GET /api/repos/discover` uses MCP at runtime; `.claude/commands/` (`/sync-check`, `/add-metric`, `/security-scan`) use MCP tools |
 | Effective Claude Code usage | 10 | Plan mode used; CRISP prompts; 3 custom commands in `.claude/commands/` |
 | Documentation | 10 | `README.md` (Quick Start, API docs, architecture); `SPEC.md`; `CLAUDE.md` |
 

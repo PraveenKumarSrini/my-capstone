@@ -31,8 +31,8 @@ npx prisma db seed       # Seed demo data (1 user, 2 accounts, 3 repos, sample m
 npx prisma studio        # Open DB GUI at localhost:5555
 docker compose up -d postgres-test  # Spin up test DB (port 5433)
 
-# GitHub MCP
-npx @anthropic-ai/claude-code --mcp github   # Claude Code with GitHub MCP server
+# GitHub MCP (configured via .mcp.json — loaded automatically by Claude Code)
+export GITHUB_PERSONAL_ACCESS_TOKEN=<pat>    # required for the github MCP server
 
 # Local webhook testing (development only)
 ngrok http 3000          # Expose localhost — set WEBHOOK_BASE_URL to ngrok URL
@@ -130,7 +130,8 @@ devpulse/
 │   │   │   ├── webhooks.ts          # registerWebhook / deleteWebhook via Octokit
 │   │   │   ├── metrics.ts           # fetchMetricsForRepo — GitHub API → Metric[]
 │   │   │   ├── processWebhookEvent.ts  # parse payload → write Metrics → broadcast SSE
-│   │   │   └── sync.ts              # reconcileStaleRepos — backfill via GitHub API
+│   │   │   ├── sync.ts              # reconcileStaleRepos — backfill via GitHub API
+│   │   │   └── mcp.ts               # searchGitHubReposViaMCP — GitHub MCP server client
 │   │   ├── db.ts                    # Prisma client singleton
 │   │   ├── db/
 │   │   │   ├── userRepo.ts
@@ -331,6 +332,7 @@ Never return raw data without the envelope. Never throw unhandled errors — alw
 | DELETE | `/api/github-accounts/:accountId` | Disconnect — removes webhooks first |
 | POST | `/api/github-accounts/:accountId/switch` | Set as active account |
 | GET | `/api/repos` | List repos for active GitHub account |
+| GET | `/api/repos/discover` | Search GitHub repos for active account via MCP (`?q=` optional) |
 | POST | `/api/repos/connect` | Track a new repo — registers webhook + initial sync |
 | PATCH | `/api/repos/:repoId` | Toggle `isTracked` — registers or removes webhook |
 | GET | `/api/repos/:repoId/metrics` | Fetch metrics (`?from=ISO&to=ISO&type=MetricType`) |
@@ -437,22 +439,62 @@ Three slash commands live in `.claude/commands/`:
 
 ## MCP Integration (GitHub)
 
-Claude Code uses the GitHub MCP server for repo data operations during development and sync.
+MCP servers are configured in `.mcp.json` at the project root. Claude Code loads them automatically when working in this directory.
 
+### Configuration (`.mcp.json`)
+
+| Server | Package | Purpose |
+|--------|---------|---------|
+| `github` | `@modelcontextprotocol/server-github` | List repos, fetch commits/PRs/reviews, manage webhooks |
+| `filesystem` | `@modelcontextprotocol/server-filesystem` | Read project files without shell commands |
+
+**Required env var for `github` server:**
 ```bash
-npx @anthropic-ai/claude-code --mcp github
+export GITHUB_PERSONAL_ACCESS_TOKEN=<your-pat>   # needs repo + read:user scope
 ```
 
-The MCP server enables:
-- Listing repos for a given GitHub account
-- Fetching commit history, PR lists, review data
-- Handling pagination and rate limit management
+### MCP tools used
 
-Integration points in code:
-- `src/lib/github/client.ts` — creates Octokit instance (uses MCP as GitHub API transport)
-- `src/lib/github/metrics.ts` — calls Octokit to fetch and normalize GitHub data
-- `src/lib/github/webhooks.ts` — calls Octokit to register/delete webhooks
-- `src/lib/github/sync.ts` — reconciliation job uses Octokit for backfill
+| MCP Tool | Used in |
+|----------|---------|
+| `mcp__github__get_repository` | `/sync-check` — verify repo still accessible |
+| `mcp__github__list_repository_webhooks` | `/sync-check` — confirm webhook is registered |
+| `mcp__github__list_commits` | Development inspection of commit data |
+| `mcp__github__list_pull_requests` | Development inspection of PR data |
+| `mcp__filesystem__read_file` | Custom commands reading config/schema files |
+
+### Runtime integration — `GET /api/repos/discover`
+
+`src/lib/github/mcp.ts` exports `searchGitHubReposViaMCP(accountId, query?)` which:
+1. Looks up the `GitHubAccount` and decrypts its `accessToken`
+2. Spawns `@modelcontextprotocol/server-github` as a child process via `StdioClientTransport`
+3. Calls the `search_repositories` MCP tool with the user's OAuth token
+4. Returns typed `MCPRepoResult[]` to the caller
+
+This is consumed by `GET /api/repos/discover?q=<optional>` — an API route used by the Connect Repo UI so users can browse their GitHub repos instead of manually typing `owner/repo`.
+
+### Development tooling
+
+For Claude Code development assistance (slash commands, repo inspection), set:
+```bash
+export GITHUB_PERSONAL_ACCESS_TOKEN=<your-pat>  # needs repo + read:user scope
+```
+Claude Code loads `.mcp.json` automatically and uses MCP tools to inspect live GitHub state.
+
+### Integration points in code
+
+| File | MCP role |
+|------|----------|
+| `src/lib/github/mcp.ts` | **Runtime MCP client** — spawns GitHub MCP server, calls `search_repositories` |
+| `src/app/api/repos/discover/route.ts` | **API route** — exposes MCP repo search to the frontend |
+| `src/lib/github/client.ts` | Octokit factory; mirrors MCP tool surface for commit/PR/webhook operations |
+| `src/lib/github/metrics.ts` | Fetches commit/PR/review data (same data MCP tools expose) |
+| `src/lib/github/sync.ts` | Reconciliation; `/sync-check` audits its output via MCP |
+
+### Custom commands that use MCP
+
+- `/sync-check` — calls `mcp__github__get_repository` + `mcp__github__list_repository_webhooks` to verify webhook health
+- `/security-scan` — uses `mcp__filesystem__read_file` to inspect route handlers for ownership checks
 
 ---
 
