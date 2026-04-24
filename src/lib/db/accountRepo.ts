@@ -28,7 +28,7 @@ export async function getAccountWithSecret(id: string): Promise<GitHubAccount | 
 
 export async function updateAccount(
   id: string,
-  data: Partial<Pick<GitHubAccount, 'webhookSecret' | 'displayName' | 'avatarUrl'>>
+  data: Partial<Pick<GitHubAccount, 'accessToken' | 'webhookSecret' | 'displayName' | 'avatarUrl'>>
 ): Promise<GitHubAccount> {
   return prisma.gitHubAccount.update({ where: { id }, data })
 }

@@ -640,12 +640,12 @@ src/components/ui/                     Primitives (no business logic)
 
 | Phase | Name | Steps | Est. | Status |
 |-------|------|-------|------|--------|
-| P1 | Foundation | 1–3 | 6h | ⬜ Not started |
-| P2 | Auth & Core APIs | 4–6 | 7h | ⬜ Not started |
-| P3 | Webhooks & Real-time | 7 | 3h | ⬜ Not started |
+| P1 | Foundation | 1–3 | 6h | ✅ Done |
+| P2 | Auth & Core APIs | 4–6 | 7h | 🔄 In Progress (backend ✅, auth UI ⬜) |
+| P3 | Webhooks & Real-time | 7 | 3h | ✅ Done |
 | P4 | Frontend | 8–12 | 8h | ⬜ Not started |
 | P5 | Worker & Reliability | 13 | 1.5h | ⬜ Not started |
-| P6 | Tests & CI | 14–15 | 6h | ⬜ Not started |
+| P6 | Tests & CI | 14–15 | 6h | 🔄 In Progress (integration ✅, unit/e2e ⬜) |
 | **Total** | | **15 steps** | **~31.5h** | |
 
 > Update status to 🔄 In Progress → ✅ Done as phases complete.
@@ -662,67 +662,67 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 1 — Project Scaffolding `(est. 2h)`
 
 **Config files**
-- [ ] Scaffold Next.js 14 App Router project with TypeScript + Tailwind into current directory
-- [ ] `package.json` — add all runtime deps: `prisma @prisma/client next-auth@5 @auth/prisma-adapter @octokit/rest pino pino-pretty swr recharts zod bcryptjs`
-- [ ] `package.json` — add all type deps: `@types/bcryptjs @types/node`
-- [ ] `package.json` — add all dev deps: `jest @testing-library/react @testing-library/jest-dom jest-environment-jsdom ts-jest playwright @playwright/test eslint-config-next prettier`
-- [ ] `package.json` — add all npm scripts: `dev`, `dev:worker`, `build`, `lint`, `typecheck`, `test`, `test:e2e`, `test:coverage`
-- [ ] `tsconfig.json` — strict mode enabled; path alias `@/*` → `./src/*`
-- [ ] `.prettierrc` — 2-space indent, single quotes, no semicolons, trailing comma `es5`
-- [ ] `eslint.config.js` — extends `next/core-web-vitals` + `@typescript-eslint/recommended`
-- [ ] `next.config.js` — base config (no special flags needed for v1)
+- [x] Scaffold Next.js 14 App Router project with TypeScript + Tailwind into current directory
+- [x] `package.json` — add all runtime deps: `prisma @prisma/client next-auth@5 @auth/prisma-adapter @octokit/rest pino pino-pretty swr recharts zod bcryptjs`
+- [x] `package.json` — add all type deps: `@types/bcryptjs @types/node`
+- [x] `package.json` — add all dev deps: `jest @testing-library/react @testing-library/jest-dom jest-environment-jsdom ts-jest playwright @playwright/test eslint-config-next prettier`
+- [x] `package.json` — add all npm scripts: `dev`, `dev:worker`, `build`, `lint`, `typecheck`, `test`, `test:e2e`, `test:coverage`
+- [x] `tsconfig.json` — strict mode enabled; path alias `@/*` → `./src/*`
+- [x] `.prettierrc` — 2-space indent, single quotes, no semicolons, trailing comma `es5`
+- [x] `eslint.config.js` — extends `next/core-web-vitals` + `@typescript-eslint/recommended`
+- [x] `next.config.js` — base config (no special flags needed for v1)
 
 **Environment & infrastructure**
-- [ ] `.env.example` — document all 9 env vars with inline comments:
+- [x] `.env.example` — document all 9 env vars with inline comments:
   ```
   DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL,
   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
   ENCRYPTION_KEY, WEBHOOK_BASE_URL, LOG_LEVEL, SYNC_INTERVAL_MS
   ```
-- [ ] `docker-compose.yml` — two services:
+- [x] `docker-compose.yml` — two services:
   - `postgres` on port `5432` (dev DB, volume `pgdata`)
   - `postgres-test` on port `5433` (test DB, no volume — ephemeral)
-- [ ] `.gitignore` — include `.env`, `node_modules/`, `.next/`, `coverage/`
-- [ ] `.claudeignore` — include `node_modules/`, `.next/`, `prisma/migrations/`
+- [x] `.gitignore` — include `.env`, `node_modules/`, `.next/`, `coverage/`
+- [x] `.claudeignore` — include `node_modules/`, `.next/`, `prisma/migrations/`
 
 **Step 1 verification**
-- [ ] `npm run lint` passes on empty project
-- [ ] `npm run typecheck` passes
-- [ ] `docker compose up -d` starts both postgres services without errors
+- [x] `npm run lint` passes on empty project
+- [x] `npm run typecheck` passes
+- [x] `docker compose up -d` starts both postgres services without errors
 
 ---
 
 ### Step 2 — Database Layer `(est. 2h)`
 
 **Schema**
-- [ ] `prisma/schema.prisma` — define all 6 models: `User`, `GitHubAccount`, `Repository`, `Metric`, `WebhookEvent`, `Session`
-- [ ] `prisma/schema.prisma` — define both enums: `MetricType` (6 values), `WebhookEventStatus` (4 values)
-- [ ] `prisma/schema.prisma` — verify all cascade deletes: User→GitHubAccount→Repository→Metric+WebhookEvent
-- [ ] `prisma/schema.prisma` — verify indexes: `Metric(repoId, type, recordedAt)`, `WebhookEvent(status, receivedAt)`, `WebhookEvent.deliveryId @unique`
-- [ ] Run `npx prisma migrate dev --name init` — generates migration file
-- [ ] Run `npx prisma generate` — generates Prisma client
+- [x] `prisma/schema.prisma` — define all 6 models: `User`, `GitHubAccount`, `Repository`, `Metric`, `WebhookEvent`, `Session`
+- [x] `prisma/schema.prisma` — define both enums: `MetricType` (6 values), `WebhookEventStatus` (4 values)
+- [x] `prisma/schema.prisma` — verify all cascade deletes: User→GitHubAccount→Repository→Metric+WebhookEvent
+- [x] `prisma/schema.prisma` — verify indexes: `Metric(repoId, type, recordedAt)`, `WebhookEvent(status, receivedAt)`, `WebhookEvent.deliveryId @unique`
+- [x] Run `npx prisma migrate dev --name init` — generates migration file
+- [x] Run `npx prisma generate` — generates Prisma client
 
 **Seed data**
-- [ ] `prisma/seed.ts` — seed script with:
+- [x] `prisma/seed.ts` — seed script with:
   - 1 demo user (`demo@devpulse.dev` / password `demo1234`)
   - 2 `GitHubAccount` rows (one "Personal", one "Work") linked to demo user, with placeholder encrypted tokens
   - 3 `Repository` rows (2 under Personal account, 1 under Work), all `isTracked: true`
   - 30 days of sample `Metric` rows for each repo × each `MetricType` (realistic random values)
-- [ ] `package.json` — add `"prisma": { "seed": "ts-node prisma/seed.ts" }`
+- [x] `package.json` — add `"prisma": { "seed": "ts-node prisma/seed.ts" }`
 - [ ] Run `npx prisma db seed` — verify seed completes without errors
 - [ ] Run `npx prisma studio` — visually verify all seed rows
 
 **Repository functions**
-- [ ] `src/lib/db.ts` — Prisma client singleton (checks `globalThis.__prisma` to prevent hot-reload duplication)
-- [ ] `src/lib/db/userRepo.ts` — exports: `createUser`, `getUserByEmail`, `getUserById`, `updateActiveAccount`
-- [ ] `src/lib/db/accountRepo.ts` — exports: `createAccount`, `getAccountsByUserId`, `getAccountById`, `deleteAccount`, `getAccountWithSecret`
-- [ ] `src/lib/db/repoRepo.ts` — exports: `createRepo`, `getReposByAccountId`, `getRepoById`, `updateRepo`, `getStaleRepos`
-- [ ] `src/lib/db/metricRepo.ts` — exports: `insertMetric`, `getMetrics` (by repoId + type + date range), `getAggregatedMetrics`
-- [ ] `src/lib/db/webhookEventRepo.ts` — exports: `enqueue`, `markProcessing`, `markProcessed`, `markFailed`, `getPendingAndFailed`, `isDuplicate`
+- [x] `src/lib/db.ts` — Prisma client singleton (checks `globalThis.__prisma` to prevent hot-reload duplication)
+- [x] `src/lib/db/userRepo.ts` — exports: `createUser`, `getUserByEmail`, `getUserById`, `updateActiveAccount`
+- [x] `src/lib/db/accountRepo.ts` — exports: `createAccount`, `getAccountsByUserId`, `getAccountById`, `deleteAccount`, `getAccountWithSecret`
+- [x] `src/lib/db/repoRepo.ts` — exports: `createRepo`, `getReposByAccountId`, `getRepoById`, `updateRepo`, `getStaleRepos`
+- [x] `src/lib/db/metricRepo.ts` — exports: `insertMetric`, `getMetrics` (by repoId + type + date range), `getAggregatedMetrics`
+- [x] `src/lib/db/webhookEventRepo.ts` — exports: `enqueue`, `markProcessing`, `markProcessed`, `markFailed`, `getPendingAndFailed`, `isDuplicate`
 
 **Step 2 verification**
-- [ ] `npx prisma validate` passes
-- [ ] `npm run typecheck` passes (Prisma client types are generated)
+- [x] `npx prisma validate` passes
+- [x] `npm run typecheck` passes (Prisma client types are generated)
 - [ ] `npx prisma db seed` completes; `npx prisma studio` shows correct seed rows
 
 ---
@@ -730,35 +730,35 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 3 — Core Library Modules `(est. 2h)`
 
 **Encryption**
-- [ ] `src/lib/crypto.ts` — `encrypt(plaintext: string): string` using AES-256-GCM with `ENCRYPTION_KEY`
-- [ ] `src/lib/crypto.ts` — `decrypt(ciphertext: string): string` — inverse; throws on bad key/tampered data
-- [ ] `src/lib/crypto.ts` — IV is random per encryption, prepended to ciphertext (hex-encoded)
+- [x] `src/lib/crypto.ts` — `encrypt(plaintext: string): string` using AES-256-GCM with `ENCRYPTION_KEY`
+- [x] `src/lib/crypto.ts` — `decrypt(ciphertext: string): string` — inverse; throws on bad key/tampered data
+- [x] `src/lib/crypto.ts` — IV is random per encryption, prepended to ciphertext (hex-encoded)
 
 **Logger**
-- [ ] `src/lib/logger.ts` — Pino logger with:
+- [x] `src/lib/logger.ts` — Pino logger with:
   - `level` from `LOG_LEVEL` env var (default `info`)
   - `redact` paths: `['accessToken', 'webhookSecret', '*.accessToken', '*.webhookSecret']`
   - Pretty-print in development (`NODE_ENV !== 'production'`), JSON in production
 
 **Utilities**
-- [ ] `src/lib/utils.ts` — `buildDateRange(from: string, to: string): { gte: Date; lte: Date }` — parses ISO strings, throws `ZodError` if invalid
-- [ ] `src/lib/utils.ts` — `formatMetricValue(type: MetricType, value: number): string` — e.g. `"42 commits"`
-- [ ] `src/lib/utils.ts` — `chunkArray<T>(arr: T[], size: number): T[][]`
-- [ ] `src/lib/utils.ts` — `timeAgo(date: Date): string` — e.g. `"3 minutes ago"`
+- [x] `src/lib/utils.ts` — `buildDateRange(from: string, to: string): { gte: Date; lte: Date }` — parses ISO strings, throws `ZodError` if invalid
+- [x] `src/lib/utils.ts` — `formatMetricValue(type: MetricType, value: number): string` — e.g. `"42 commits"`
+- [x] `src/lib/utils.ts` — `chunkArray<T>(arr: T[], size: number): T[][]`
+- [x] `src/lib/utils.ts` — `timeAgo(date: Date): string` — e.g. `"3 minutes ago"`
 
 **SSE emitter**
-- [ ] `src/lib/sse.ts` — `subscribe(accountId: string, res: Response): void` — registers SSE client; removes on `close` event
-- [ ] `src/lib/sse.ts` — `broadcast(accountId: string, event: SSEEvent): void` — writes to all subscribed clients for that account
-- [ ] `src/lib/sse.ts` — exported as a module-level singleton (one `EventEmitter` instance per process)
+- [x] `src/lib/sse.ts` — `subscribe(accountId: string, res: Response): void` — registers SSE client; removes on `close` event
+- [x] `src/lib/sse.ts` — `broadcast(accountId: string, event: SSEEvent): void` — writes to all subscribed clients for that account
+- [x] `src/lib/sse.ts` — exported as a module-level singleton (one `EventEmitter` instance per process)
 
 **Types & Zod schemas**
-- [ ] `src/types/index.ts` — TypeScript types: `GitHubAccount`, `Repository`, `Metric`, `DashboardData`, `AggregatedMetric`, `SSEEvent`, `ApiSuccess<T>`, `ApiError`
-- [ ] `src/types/index.ts` — Zod schemas: `ConnectRepoSchema`, `MetricsQuerySchema`, `RegisterSchema`, `LoginSchema`, `PatchRepoSchema`
-- [ ] `src/types/index.ts` — augment `next-auth` types to add `activeAccountId` to `Session` and `JWT`
+- [x] `src/types/index.ts` — TypeScript types: `GitHubAccount`, `Repository`, `Metric`, `DashboardData`, `AggregatedMetric`, `SSEEvent`, `ApiSuccess<T>`, `ApiError`
+- [x] `src/types/index.ts` — Zod schemas: `ConnectRepoSchema`, `MetricsQuerySchema`, `RegisterSchema`, `LoginSchema`, `PatchRepoSchema`
+- [x] `src/types/index.ts` — augment `next-auth` types to add `activeAccountId` to `Session` and `JWT`
 
 **Step 3 verification**
-- [ ] `npm run typecheck` passes
-- [ ] `npm run lint` passes
+- [x] `npm run typecheck` passes
+- [x] `npm run lint` passes
 
 ---
 
@@ -772,14 +772,14 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 4 — Authentication `(est. 2h)`
 
 **NextAuth config**
-- [ ] `src/lib/auth.ts` — configure `Credentials` provider: look up user by email, verify bcrypt hash
-- [ ] `src/lib/auth.ts` — configure `GitHub` provider: on `signIn` callback, upsert `GitHubAccount` with encrypted token; if first account for user, set `User.activeAccountId`
-- [ ] `src/lib/auth.ts` — `jwt` callback: embed `activeAccountId`, `userId` into token
-- [ ] `src/lib/auth.ts` — `session` callback: expose `activeAccountId` and `userId` on `session.user`
-- [ ] `src/lib/auth.ts` — export `{ handlers, auth, signIn, signOut }` (NextAuth v5 pattern)
+- [x] `src/lib/auth.ts` — configure `Credentials` provider: look up user by email, verify bcrypt hash
+- [x] `src/lib/auth.ts` — configure `GitHub` provider: on `signIn` callback, upsert `GitHubAccount` with encrypted token; if first account for user, set `User.activeAccountId`
+- [x] `src/lib/auth.ts` — `jwt` callback: embed `activeAccountId`, `userId` into token
+- [x] `src/lib/auth.ts` — `session` callback: expose `activeAccountId` and `userId` on `session.user`
+- [x] `src/lib/auth.ts` — export `{ handlers, auth, signIn, signOut }` (NextAuth v5 pattern)
 
 **Auth route**
-- [ ] `src/app/api/auth/[...nextauth]/route.ts` — export `{ GET, POST }` from `handlers`
+- [x] `src/app/api/auth/[...nextauth]/route.ts` — export `{ GET, POST }` from `handlers`
 
 **Auth pages**
 - [ ] `src/app/(auth)/layout.tsx` — centered card layout, no sidebar
@@ -788,33 +788,33 @@ src/components/ui/                     Primitives (no business logic)
 - [ ] `src/components/auth/GitHubOAuthButton.tsx` — calls `signIn('github')`; shows spinner while redirecting
 - [ ] `src/app/(auth)/register/page.tsx` — renders `RegisterForm`
 - [ ] `src/components/auth/RegisterForm.tsx` — name + email + password fields; calls `POST /api/auth/register`; redirects to `/login` on success
-- [ ] `src/app/api/auth/register/route.ts` — POST handler: Zod validate body, check duplicate email, bcrypt hash password, create `User`
+- [x] `src/app/api/auth/register/route.ts` — POST handler: Zod validate body, check duplicate email, bcrypt hash password, create `User`
 
 **Route protection**
-- [ ] `src/middleware.ts` — protect all `/dashboard/*` routes; redirect unauthenticated users to `/login`
-- [ ] `src/app/layout.tsx` — wrap with `<SessionProvider>`
-- [ ] `src/app/page.tsx` — redirect `/` to `/dashboard` if authenticated, else to `/login`
+- [x] `src/middleware.ts` — protect all `/dashboard/*` routes; redirect unauthenticated users to `/login`
+- [x] `src/app/layout.tsx` — wrap with `<SessionProvider>`
+- [x] `src/app/page.tsx` — redirect `/` to `/dashboard` if authenticated, else to `/login`
 
 **Step 4 verification**
 - [ ] Register a new user via form; verify `User` row in DB with hashed password
 - [ ] Log in with credentials; verify JWT session; visit `/dashboard` directly
 - [ ] Visit `/dashboard` while logged out; verify redirect to `/login`
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 
 ---
 
 ### Step 5 — GitHub Client + Webhooks + Metrics `(est. 3h)`
 
 **Octokit factory**
-- [ ] `src/lib/github/client.ts` — `getOctokitForAccount(accountId: string): Promise<Octokit>` — fetches `GitHubAccount`, decrypts `accessToken`, constructs and returns `Octokit` instance
-- [ ] `src/lib/github/client.ts` — throws `NotFoundError` if account not found; logs at `warn` level (never logs the token)
+- [x] `src/lib/github/client.ts` — `getOctokitForAccount(accountId: string): Promise<Octokit>` — fetches `GitHubAccount`, decrypts `accessToken`, constructs and returns `Octokit` instance
+- [x] `src/lib/github/client.ts` — throws `NotFoundError` if account not found; logs at `warn` level (never logs the token)
 
 **Webhook registration**
-- [ ] `src/lib/github/webhooks.ts` — `registerWebhook(accountId, repoFullName): Promise<number>` — calls `octokit.repos.createWebhook` with `WEBHOOK_BASE_URL/api/webhooks/github`; returns `webhookId`; generates + stores encrypted `webhookSecret` on `GitHubAccount` if not set
-- [ ] `src/lib/github/webhooks.ts` — `deleteWebhook(accountId, repoFullName, webhookId): Promise<void>` — calls `octokit.repos.deleteWebhook`; logs `warn` (not error) if webhook already deleted on GitHub side (404 is acceptable)
+- [x] `src/lib/github/webhooks.ts` — `registerWebhook(accountId, repoFullName): Promise<number>` — calls `octokit.repos.createWebhook` with `WEBHOOK_BASE_URL/api/webhooks/github`; returns `webhookId`; generates + stores encrypted `webhookSecret` on `GitHubAccount` if not set
+- [x] `src/lib/github/webhooks.ts` — `deleteWebhook(accountId, repoFullName, webhookId): Promise<void>` — calls `octokit.repos.deleteWebhook`; logs `warn` (not error) if webhook already deleted on GitHub side (404 is acceptable)
 
 **Metrics fetch**
-- [ ] `src/lib/github/metrics.ts` — `fetchMetricsForRepo(octokit, fullName, from, to): Promise<Metric[]>`:
+- [x] `src/lib/github/metrics.ts` — `fetchMetricsForRepo(octokit, fullName, from, to): Promise<Metric[]>`:
   - Fetch commits via `octokit.repos.listCommits` with `since`/`until` params — map to `COMMIT_COUNT`
   - Fetch PRs via `octokit.pulls.list` (state=all) filtered by date — map opened/merged/closed to `PR_OPENED` / `PR_MERGED` / `PR_CLOSED`
   - Fetch reviews via `octokit.pulls.listReviews` for each PR — map to `REVIEW_COUNT`
@@ -822,7 +822,7 @@ src/components/ui/                     Primitives (no business logic)
   - Respect `x-ratelimit-remaining`; log warning when < 100
 
 **Webhook event processor**
-- [ ] `src/lib/github/processWebhookEvent.ts` — `processWebhookEvent(eventId: string): Promise<void>`:
+- [x] `src/lib/github/processWebhookEvent.ts` — `processWebhookEvent(eventId: string): Promise<void>`:
   - Calls `webhookEventRepo.markProcessing(eventId)`
   - Switch on `eventType`:
     - `push` → `COMMIT_COUNT`, value = `payload.commits.length`, `recordedAt` = `payload.head_commit.timestamp`
@@ -836,14 +836,14 @@ src/components/ui/                     Primitives (no business logic)
   - On error: `webhookEventRepo.markFailed(eventId, error.message)`
 
 **Reconciliation sync**
-- [ ] `src/lib/github/sync.ts` — `reconcileStaleRepos(): Promise<void>`:
+- [x] `src/lib/github/sync.ts` — `reconcileStaleRepos(): Promise<void>`:
   - `repoRepo.getStaleRepos(35)` — repos where `lastSyncedAt < now - 35min` and `isTracked = true`
   - For each stale repo: call `getOctokitForAccount` + `fetchMetricsForRepo(since: lastSyncedAt)`
   - Upsert metrics (skip duplicates by `repoId + type + recordedAt`); update `lastSyncedAt`
   - Log each reconciled repo at `info` level; log errors at `error` level without stopping the loop
 
 **Step 5 verification**
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 - [ ] Manual: call `getOctokitForAccount` with seed account ID; verify Octokit resolves without error
 
 ---
@@ -851,35 +851,35 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 6 — GitHub Account + Repo APIs `(est. 2h)`
 
 **GitHub account routes**
-- [ ] `src/app/api/github-accounts/route.ts`:
+- [x] `src/app/api/github-accounts/route.ts`:
   - `GET` — return all `GitHubAccount` rows for authed user (strip `accessToken`, `webhookSecret`)
   - `POST` — exchange OAuth code for token, encrypt, create `GitHubAccount`; if first account, set `User.activeAccountId`; return new account
-- [ ] `src/app/api/github-accounts/[accountId]/route.ts`:
+- [x] `src/app/api/github-accounts/[accountId]/route.ts`:
   - `GET` — ownership check; return single account (stripped)
   - `DELETE` — ownership check; call `deleteWebhook` for each tracked repo; cascade-delete account; error if last active account
-- [ ] `src/app/api/github-accounts/[accountId]/switch/route.ts`:
+- [x] `src/app/api/github-accounts/[accountId]/switch/route.ts`:
   - `POST` — ownership check; `updateActiveAccount(userId, accountId)`; re-issue session JWT; return `{ activeAccountId }`
 
 **Repo routes**
-- [ ] `src/app/api/repos/route.ts`:
+- [x] `src/app/api/repos/route.ts`:
   - `GET` — return all repos for `session.user.activeAccountId`
-- [ ] `src/app/api/repos/connect/route.ts`:
+- [x] `src/app/api/repos/connect/route.ts`:
   - `POST` — Zod validate `{ fullName }`; verify repo exists on GitHub via Octokit; create `Repository`; call `registerWebhook`; trigger async initial sync (last 30 days); return repo
-- [ ] `src/app/api/repos/[repoId]/route.ts`:
+- [x] `src/app/api/repos/[repoId]/route.ts`:
   - `PATCH` — ownership check; Zod validate `{ isTracked }`; if `true` call `registerWebhook`, if `false` call `deleteWebhook`; update repo; return updated repo
-- [ ] `src/app/api/repos/[repoId]/metrics/route.ts`:
+- [x] `src/app/api/repos/[repoId]/metrics/route.ts`:
   - `GET` — ownership check; Zod validate `?from`, `?to`, `?type`; call `metricRepo.getMetrics`; return `Metric[]`
-- [ ] `src/app/api/dashboard/route.ts`:
+- [x] `src/app/api/dashboard/route.ts`:
   - `GET` — get all tracked repos for `activeAccountId`; call `metricRepo.getAggregatedMetrics` for last 30 days; build `DashboardData` shape; return
 
 **Shared API helpers**
-- [ ] `src/lib/api.ts` — `requireAuth(request): Promise<Session>` — calls `auth()`; throws `UnauthorizedError` if no session
-- [ ] `src/lib/api.ts` — `requireOwnership(accountId, userId): Promise<GitHubAccount>` — calls `accountRepo.getAccountById`; throws `NotFoundError` if not found or wrong user
-- [ ] `src/lib/api.ts` — `apiSuccess<T>(data: T, status = 200): Response` — returns `{ success: true, data }`
-- [ ] `src/lib/api.ts` — `apiError(message: string, status: number, code?: string): Response` — returns `{ success: false, error, code }`
+- [x] `src/lib/api.ts` — `requireAuth(request): Promise<Session>` — calls `auth()`; throws `UnauthorizedError` if no session
+- [x] `src/lib/api.ts` — `requireOwnership(accountId, userId): Promise<GitHubAccount>` — calls `accountRepo.getAccountById`; throws `NotFoundError` if not found or wrong user
+- [x] `src/lib/api.ts` — `apiSuccess<T>(data: T, status = 200): Response` — returns `{ success: true, data }`
+- [x] `src/lib/api.ts` — `apiError(message: string, status: number, code?: string): Response` — returns `{ success: false, error, code }`
 
 **Step 6 verification**
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 - [ ] Manual: `GET /api/github-accounts` returns seed accounts
 - [ ] Manual: `GET /api/repos` returns seed repos
 - [ ] Manual: `GET /api/repos/:id/metrics?from=...&to=...&type=COMMIT_COUNT` returns seed metrics
@@ -897,7 +897,7 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 7 — Webhook Endpoint + SSE `(est. 3h)`
 
 **Webhook receiver**
-- [ ] `src/app/api/webhooks/github/route.ts` — `POST` handler:
+- [x] `src/app/api/webhooks/github/route.ts` — `POST` handler:
   - Read raw body as `ArrayBuffer` for HMAC verification
   - Extract headers: `X-Hub-Signature-256`, `X-GitHub-Event`, `X-GitHub-Delivery`
   - Return `400` if any required header is missing
@@ -910,7 +910,7 @@ src/components/ui/                     Primitives (no business logic)
   - Return `200 { success: true, data: { received: true } }` immediately
 
 **SSE stream**
-- [ ] `src/app/api/sse/metrics/route.ts` — `GET` handler:
+- [x] `src/app/api/sse/metrics/route.ts` — `GET` handler:
   - Call `requireAuth` — return `401` if unauthenticated
   - Set response headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`
   - Call `sse.subscribe(session.user.activeAccountId, controller)`
@@ -919,7 +919,7 @@ src/components/ui/                     Primitives (no business logic)
   - On `request.signal.addEventListener('abort')`: clear interval + unsubscribe
 
 **Step 7 verification**
-- [ ] `npm run typecheck` passes
+- [x] `npm run typecheck` passes
 - [ ] Manual: POST a valid signed push payload to `/api/webhooks/github` — verify `WebhookEvent` row with `status: PROCESSED` appears in DB
 - [ ] Manual: POST with wrong HMAC — verify `401` returned
 - [ ] Manual: POST same `X-GitHub-Delivery` twice — verify `409` on second request
@@ -1082,8 +1082,8 @@ src/components/ui/                     Primitives (no business logic)
 ### Step 14 — Tests `(est. 5h)`
 
 **Test infrastructure**
-- [ ] `jest.config.ts` — `testEnvironment: jsdom` for component tests; `testEnvironment: node` for API/unit; `moduleNameMapper` for `@/*` alias; `transform` for TypeScript
-- [ ] `jest.setup.ts` — import `@testing-library/jest-dom`; mock `next/navigation`; set `process.env.DATABASE_URL` to postgres-test URL
+- [x] `jest.config.ts` — `testEnvironment: jsdom` for component tests; `testEnvironment: node` for API/unit; `moduleNameMapper` for `@/*` alias; `transform` for TypeScript
+- [x] `jest.setup.ts` — import `@testing-library/jest-dom`; mock `next/navigation`; set `process.env.DATABASE_URL` to postgres-test URL
 - [ ] `playwright.config.ts` — baseURL `http://localhost:3000`; single `chromium` project for CI speed; retries: 2
 
 **Unit tests** (`tests/unit/`)
@@ -1099,11 +1099,11 @@ src/components/ui/                     Primitives (no business logic)
 - [ ] `metrics.test.ts` — mock Octokit responses; verify commit list maps to `COMMIT_COUNT`; verify PR list maps to correct types; verify pagination is followed
 
 **Integration tests** (`tests/integration/`) — all use postgres-test DB; reset between tests
-- [ ] `github-accounts.test.ts` — GET returns only authed user's accounts; DELETE cascades and removes webhooks; switch updates `activeAccountId`; ownership check returns 404
-- [ ] `repos.test.ts` — GET scoped to active account; PATCH `isTracked` registers/removes webhook; metrics query respects `from`/`to`/`type`; invalid query returns 400
-- [ ] `webhooks.test.ts` — valid HMAC + new deliveryId → 200 + `PENDING` row created; wrong HMAC → 401; duplicate deliveryId → 409; async processing sets status to `PROCESSED`
-- [ ] `dashboard.test.ts` — aggregated response sums metrics across all tracked repos; excludes untracked repos
-- [ ] `sse.test.ts` — unauthenticated → 401; authenticated → SSE connection established; after `processWebhookEvent`, `broadcast` called with correct accountId
+- [x] `github-accounts.test.ts` — GET returns only authed user's accounts; DELETE cascades and removes webhooks; switch updates `activeAccountId`; ownership check returns 404
+- [x] `repos.test.ts` — GET scoped to active account; PATCH `isTracked` registers/removes webhook; metrics query respects `from`/`to`/`type`; invalid query returns 400
+- [x] `webhooks.test.ts` — valid HMAC + new deliveryId → 200 + `PENDING` row created; wrong HMAC → 401; duplicate deliveryId → 409; async processing sets status to `PROCESSED`
+- [x] `dashboard.test.ts` — aggregated response sums metrics across all tracked repos; excludes untracked repos
+- [x] `sse.test.ts` — unauthenticated → 401; authenticated → SSE connection established; after `processWebhookEvent`, `broadcast` called with correct accountId
 
 **Component tests** (colocated)
 - [ ] `src/components/layout/AccountSwitcher.test.tsx` — renders accounts; clicking triggers switch API call; loading state shown during switch; `router.refresh` called after
@@ -1124,7 +1124,7 @@ src/components/ui/                     Primitives (no business logic)
   - Toggle repo tracking off; verify repo no longer in dashboard
 
 **Step 14 verification**
-- [ ] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass
+- [x] `docker compose up -d postgres-test && npm test` — all unit + integration tests pass (48/48 integration tests)
 - [ ] `npm run test:coverage` — coverage report shows ≥80% lines
 - [ ] `npm run test:e2e` (with `npm run dev` running) — all E2E tests pass
 
