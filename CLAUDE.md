@@ -3,6 +3,34 @@
 > This file is the single source of truth for Claude Code working in this codebase.
 > Read it fully before making any changes. Update it when architectural decisions change.
 > For full requirements and acceptance criteria, see [`docs/SPEC.md`](docs/SPEC.md).
+> For the full API reference, see [`docs/API.md`](docs/API.md).
+
+---
+
+## Quick Start (new developer, < 5 min)
+
+```bash
+# 1. Install
+npm ci
+
+# 2. Start databases
+docker compose up -d postgres postgres-test
+
+# 3. Environment
+cp .env.example .env
+# Fill in DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL, GITHUB_CLIENT_ID,
+# GITHUB_CLIENT_SECRET, ENCRYPTION_KEY (openssl rand -hex 32), WEBHOOK_BASE_URL
+
+# 4. Bootstrap DB
+npx prisma migrate dev
+npx prisma db seed          # demo user: demo@devpulse.io / password123
+
+# 5. Run
+npm run dev                 # Next.js on :3000
+npm run dev:worker          # background worker (separate terminal)
+```
+
+For webhook testing in dev: `ngrok http 3000` → set `WEBHOOK_BASE_URL` to the ngrok URL.
 
 ---
 
@@ -157,7 +185,9 @@ devpulse/
 │   ├── integration/                 # API route tests with test DB
 │   └── e2e/                         # Playwright browser tests
 ├── docs/
-│   └── SPEC.md                      # Formal spec: requirements, design, scope boundaries
+│   ├── SPEC.md                      # Formal spec: requirements, design, scope boundaries
+│   ├── API.md                       # Complete endpoint reference with request/response examples
+│   └── SECURITY-AUDIT.md            # Security audit findings
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                   # Lint → Typecheck → Test → Build
@@ -166,7 +196,9 @@ devpulse/
 │   └── commands/                    # Custom Claude Code slash commands
 │       ├── sync-check.md            # /sync-check — verify webhook + reconciliation health
 │       ├── add-metric.md            # /add-metric — scaffold a new MetricType end-to-end
-│       └── security-scan.md         # /security-scan — audit tokens, HMAC, ownership checks
+│       ├── security-scan.md         # /security-scan — audit tokens, HMAC, ownership checks
+│       ├── deploy-check.md          # /deploy-check — pre-deployment verification checklist
+│       └── add-feature.md           # /add-feature — scaffold a new feature end-to-end
 ├── CLAUDE.md                        # ← You are here
 └── .claudeignore
 ```
@@ -341,7 +373,7 @@ Never return raw data without the envelope. Never throw unhandled errors — alw
 | GET | `/api/sse/metrics` | SSE stream — pushes `metrics_updated` events to dashboard |
 | GET | `/api/auth/[...nextauth]` | NextAuth handlers |
 
-Full request/response contracts: see [`docs/SPEC.md §2.2`](docs/SPEC.md#22-api-contracts).
+Full request/response contracts with examples: see [`docs/API.md`](docs/API.md).
 
 ---
 
@@ -427,13 +459,15 @@ Key integration test areas:
 
 ## Custom Claude Code Commands
 
-Three slash commands live in `.claude/commands/`:
+Five slash commands live in `.claude/commands/`:
 
 | Command | File | What it does |
 |---------|------|-------------|
 | `/sync-check` | `sync-check.md` | Audit webhook health: check PENDING/FAILED events, stale repos, last reconciliation run |
 | `/add-metric` | `add-metric.md` | Scaffold a new MetricType end-to-end: enum → processWebhookEvent → metrics.ts → chart → tests |
 | `/security-scan` | `security-scan.md` | Audit: token redaction in logs, HMAC validation coverage, ownership checks on all routes |
+| `/deploy-check` | `deploy-check.md` | Pre-deployment checklist: env vars, migrations, build, lint, tests, security |
+| `/add-feature` | `add-feature.md` | Scaffold a new feature end-to-end: route → lib → component → hook → tests |
 
 ---
 
@@ -557,6 +591,45 @@ All steps must pass before merge. No exceptions.
 
 ---
 
+## Key Patterns & Invariants
+
+These are non-obvious patterns that must not be broken:
+
+### Encryption boundaries
+| Secret | Encrypted in | Decrypted only in |
+|--------|-------------|-------------------|
+| `GitHubAccount.accessToken` | API route / NextAuth callback | `src/lib/github/client.ts` (three helpers) |
+| `GitHubAccount.webhookSecret` | `src/lib/github/webhooks.ts` | `src/app/api/webhooks/github/route.ts` |
+
+No other file may call `decrypt()` on these fields. Violations are caught by `/security-scan`.
+
+### Webhook processing order (must not change)
+1. Validate headers → 2. Parse payload → 3. Look up repo → 4. Verify HMAC → 5. Check duplicate → **6. Persist `WebhookEvent(PENDING)`** → 7. Return 200 → 8. Process async
+
+The payload **must** be in the DB before the 200 response. If the process crashes after step 6, the worker replays the event on restart.
+
+### Octokit factory
+Always use `getOctokitForAccount(accountId)` from `src/lib/github/client.ts`. Never call `new Octokit()` elsewhere. This is the single enforcement point for encrypted token decryption.
+
+### Repository pattern for DB access
+Never call `prisma.*` directly from API routes or components. Use the typed repo functions in `src/lib/db/`:
+- `accountRepo.ts` — GitHubAccount CRUD
+- `repoRepo.ts` — Repository CRUD + stale repo queries
+- `metricRepo.ts` — insert, query, aggregate metrics
+- `webhookEventRepo.ts` — enqueue / dequeue / status transitions
+- `userRepo.ts` — user lookup, active account update
+
+### API response shape
+Every handler must return the `{ success, data }` / `{ success, error, code? }` envelope. Use `ApiException` to throw structured errors; the `handleApiError` utility converts them to the correct HTTP response. Never return raw data or let errors propagate unhandled.
+
+### activeAccountId is required for all GitHub operations
+Never fall back to "the user's only account" or a default. If `session.user.activeAccountId` is missing, return a clear error. Users with no accounts must connect one first.
+
+### SSE cleanup
+`src/lib/sse.ts` holds a `Map<accountId, Set<controller>>`. Every `GET /api/sse/metrics` handler must call `unsubscribe(accountId, controller)` in the `request.signal.onabort` handler to prevent memory leaks from stale connections.
+
+---
+
 ## Adding a New GitHub Account (Flow Reference)
 
 1. User clicks "Connect GitHub Account" in AccountSwitcher or Settings
@@ -568,5 +641,5 @@ All steps must pass before merge. No exceptions.
 
 ---
 
-*Last updated: 2026-04-24*  
+*Last updated: 2026-04-27*  
 *Maintainer: Praveen Kumar Srinivasan*
